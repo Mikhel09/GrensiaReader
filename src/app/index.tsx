@@ -12,7 +12,7 @@ import {
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Button,
@@ -191,6 +191,7 @@ export default function Index() {
   const [babEpub, setBabEpub] = useState<BabEpub[]>([]);
   const [babKe, setBabKe] = useState(0);
   const [cacheTerjemahanEpub, setCacheTerjemahanEpub] = useState<Record<number, string>>({});
+  const [sedangProsesLatar, setSedangProsesLatar] = useState(false);
 
   const [htmlDokumen, setHtmlDokumen] = useState("");
   const [htmlDokumenTerjemahan, setHtmlDokumenTerjemahan] = useState<string | null>(null);
@@ -205,15 +206,32 @@ export default function Index() {
   const [modeGelap, setModeGelap] = useState(false);
   const [panelPengaturanTerbuka, setPanelPengaturanTerbuka] = useState(false);
 
-  const [bahasaSumber, setBahasaSumberAsli] = useState<Bahasa>(DAFTAR_BAHASA[0]); // Cina
-  const [bahasaTujuan, setBahasaTujuanAsli] = useState<Bahasa>(DAFTAR_BAHASA[3]); // Indonesia
+  const [bahasaSumber, setBahasaSumberAsli] = useState<Bahasa>(DAFTAR_BAHASA[0]);
+  const [bahasaTujuan, setBahasaTujuanAsli] = useState<Bahasa>(DAFTAR_BAHASA[3]);
   const [metode, setMetodeAsli] = useState<MetodeTerjemahan>("mlkit");
 
+  // --- Ref untuk kebutuhan proses di latar belakang ---
+  // cacheRef selalu berisi data TERBARU (tidak seperti state yang baru update setelah render),
+  // supaya loop di background bisa cek "sudah diterjemahkan belum" secara akurat.
+  const cacheRef = useRef<Record<number, string>>({});
+  // tokenSesi berubah tiap kali bahasa/metode/file diganti -> proses latar lama otomatis "dibatalkan"
+  const tokenSesiRef = useRef(0);
+  // Mencegah dua proses latar berjalan bersamaan
+  const sedangLatarRef = useRef(false);
+
+  function updateCacheBab(index: number, html: string) {
+    cacheRef.current = { ...cacheRef.current, [index]: html };
+    setCacheTerjemahanEpub(cacheRef.current);
+  }
+
   function bersihkanCacheTerjemahan() {
+    tokenSesiRef.current += 1;
+    cacheRef.current = {};
     setCacheTerjemahanEpub({});
     setHtmlDokumenTerjemahan(null);
     setTeksTxtTerjemahan(null);
     setModeTerjemahan(false);
+    setSedangProsesLatar(false);
   }
 
   function setBahasaSumber(bahasa: Bahasa) {
@@ -247,6 +265,8 @@ export default function Index() {
   }, [babKe, tipeFile, fileUri, namaFile]);
 
   function kembaliKeAwal() {
+    tokenSesiRef.current += 1;
+    cacheRef.current = {};
     setFileUri(null);
     setNamaFile("");
     setTipeFile(null);
@@ -258,10 +278,13 @@ export default function Index() {
     setTeksTxt("");
     setTeksTxtTerjemahan(null);
     setModeTerjemahan(false);
+    setSedangProsesLatar(false);
   }
 
   async function bukaFileDenganUri(uri: string, nama: string, babAwal: number = 0) {
     const namaLower = nama.toLowerCase();
+    tokenSesiRef.current += 1;
+    cacheRef.current = {};
     setLoading(true);
     try {
       if (namaLower.endsWith(".epub")) {
@@ -320,9 +343,69 @@ export default function Index() {
     setDaftarRiwayat(await ambilRiwayat());
   }
 
+  // Menerjemahkan SATU bab tertentu kalau belum ada di cache, lalu simpan ke cache
+  async function pastikanBabTerjemahan(
+    daftarBab: BabEpub[],
+    index: number,
+    token: number,
+    bSumber: Bahasa,
+    bTujuan: Bahasa,
+    m: MetodeTerjemahan
+  ) {
+    if (cacheRef.current[index]) return;
+    const asli = daftarBab[index]?.html || "";
+    const hasil = await terjemahkanHtml(asli, bSumber, bTujuan, m);
+    if (token === tokenSesiRef.current) {
+      updateCacheBab(index, hasil);
+    }
+  }
+
+  // Proses SEMUA bab lain di latar belakang, mulai dari bab setelah babAwal, berputar ke awal lagi.
+  // Berjalan sendiri (tidak di-"tunggu"/await oleh siapa pun), jadi tidak menghambat tampilan.
+  function mulaiTerjemahkanSemuaDiLatar(
+    daftarBab: BabEpub[],
+    babAwal: number,
+    token: number,
+    bSumber: Bahasa,
+    bTujuan: Bahasa,
+    m: MetodeTerjemahan
+  ) {
+    if (sedangLatarRef.current) return;
+    sedangLatarRef.current = true;
+    setSedangProsesLatar(true);
+
+    const urutan: number[] = [];
+    for (let i = babAwal + 1; i < daftarBab.length; i++) urutan.push(i);
+    for (let i = 0; i < babAwal; i++) urutan.push(i);
+
+    (async () => {
+      for (const i of urutan) {
+        if (token !== tokenSesiRef.current) break; // sesi sudah berubah, hentikan
+        if (cacheRef.current[i]) continue; // sudah pernah diterjemahkan
+        try {
+          await pastikanBabTerjemahan(daftarBab, i, token, bSumber, bTujuan, m);
+        } catch (err) {
+          console.log("Gagal menerjemahkan bab di latar (bab " + (i + 1) + "):", err);
+        }
+      }
+      sedangLatarRef.current = false;
+      if (token === tokenSesiRef.current) setSedangProsesLatar(false);
+    })();
+  }
+
   function pindahBab(arah: 1 | -1) {
-    setBabKe((b) => b + arah);
-    setModeTerjemahan(false);
+    const babBaru = babKe + arah;
+    setBabKe(babBaru);
+
+    // Kalau sedang mode terjemahan dan bab baru ini belum ada di cache,
+    // terjemahkan cepat khusus bab ini saja (prioritas), tanpa menunggu antrian latar belakang.
+    if (modeTerjemahan && !cacheRef.current[babBaru]) {
+      const token = tokenSesiRef.current;
+      setSedangMenerjemahkan(true);
+      pastikanBabTerjemahan(babEpub, babBaru, token, bahasaSumber, bahasaTujuan, metode).finally(() => {
+        if (token === tokenSesiRef.current) setSedangMenerjemahkan(false);
+      });
+    }
   }
 
   async function toggleTerjemahan() {
@@ -330,10 +413,31 @@ export default function Index() {
       setModeTerjemahan(false);
       return;
     }
-    if (tipeFile === "epub" && cacheTerjemahanEpub[babKe]) {
-      setModeTerjemahan(true);
+
+    if (tipeFile === "epub") {
+      const token = tokenSesiRef.current;
+
+      if (!cacheRef.current[babKe]) {
+        setSedangMenerjemahkan(true);
+        try {
+          await pastikanBabTerjemahan(babEpub, babKe, token, bahasaSumber, bahasaTujuan, metode);
+        } catch (err) {
+          console.log("Gagal menerjemahkan:", err);
+          setSedangMenerjemahkan(false);
+          return;
+        }
+        setSedangMenerjemahkan(false);
+      }
+
+      if (token === tokenSesiRef.current) {
+        setModeTerjemahan(true);
+        // Lanjutkan menerjemahkan sisa bab lainnya di latar belakang
+        mulaiTerjemahkanSemuaDiLatar(babEpub, babKe, token, bahasaSumber, bahasaTujuan, metode);
+      }
       return;
     }
+
+    // DOCX dan TXT: tidak ada konsep "halaman", jadi tetap satu proses utuh seperti sebelumnya
     if (tipeFile === "docx" && htmlDokumenTerjemahan) {
       setModeTerjemahan(true);
       return;
@@ -345,11 +449,7 @@ export default function Index() {
 
     setSedangMenerjemahkan(true);
     try {
-      if (tipeFile === "epub") {
-        const asli = babEpub[babKe]?.html || "";
-        const hasil = await terjemahkanHtml(asli, bahasaSumber, bahasaTujuan, metode);
-        setCacheTerjemahanEpub((prev) => ({ ...prev, [babKe]: hasil }));
-      } else if (tipeFile === "docx") {
+      if (tipeFile === "docx") {
         const hasil = await terjemahkanHtml(htmlDokumen, bahasaSumber, bahasaTujuan, metode);
         setHtmlDokumenTerjemahan(hasil);
       } else if (tipeFile === "txt") {
@@ -441,6 +541,12 @@ export default function Index() {
       <SafeAreaView style={[styles.containerBaca, modeGelap && styles.containerGelap]} edges={["top"]}>
         <Header namaFile={namaFile} onKembali={kembaliKeAwal} tampilkanTombolTerjemahan modeTerjemahan={modeTerjemahan} sedangMenerjemahkan={sedangMenerjemahkan} onToggleTerjemahan={toggleTerjemahan} onBukaPengaturan={() => setPanelPengaturanTerbuka(true)} />
         <WebView originWhitelist={["*"]} source={{ html: bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap) }} />
+        {sedangProsesLatar && (
+          <View style={styles.indikatorLatar}>
+            <ActivityIndicator size="small" color="#4A6FA5" />
+            <Text style={styles.teksIndikatorLatar}>Menerjemahkan bab lainnya di latar belakang...</Text>
+          </View>
+        )}
         <View style={styles.navigasi}>
           <Button title="‹ Sebelumnya" disabled={babKe === 0} onPress={() => pindahBab(-1)} />
           <Text style={styles.teksNavigasi}>Bab {babKe + 1} / {babEpub.length}</Text>
@@ -528,6 +634,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 6, borderTopWidth: 1, borderTopColor: "#E5E5E5",
   },
   teksNavigasi: { color: "#2C3E50" },
+  indikatorLatar: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 6, backgroundColor: "#F0F2F5",
+  },
+  teksIndikatorLatar: { fontSize: 11, color: "#7F8C8D", marginLeft: 8 },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   panelPengaturan: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, maxHeight: "80%" },
   judulPanel: { fontSize: 18, fontWeight: "bold", color: "#2C3E50", marginBottom: 20 },
