@@ -13,6 +13,7 @@ export type Bahasa = {
 };
 
 export const DAFTAR_BAHASA: Bahasa[] = [
+  { label: "Inggris", mlkit: TranslateLanguage.ENGLISH, google: "en" },
   { label: "Cina", mlkit: TranslateLanguage.CHINESE, google: "zh-CN" },
   { label: "Jepang", mlkit: TranslateLanguage.JAPANESE, google: "ja" },
   { label: "Korea", mlkit: TranslateLanguage.KOREAN, google: "ko" },
