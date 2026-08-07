@@ -24,6 +24,18 @@ import { WebView } from "react-native-webview";
 
 type TipeFile = "pdf" | "epub" | "txt" | "docx" | null;
 
+// Daftar bahasa yang didukung aplikasi ini
+const DAFTAR_BAHASA: { kode: TranslateLanguage; label: string }[] = [
+  { kode: TranslateLanguage.CHINESE, label: "Cina" },
+  { kode: TranslateLanguage.JAPANESE, label: "Jepang" },
+  { kode: TranslateLanguage.KOREAN, label: "Korea" },
+  { kode: TranslateLanguage.INDONESIAN, label: "Indonesia" },
+];
+
+function labelBahasa(kode: TranslateLanguage): string {
+  return DAFTAR_BAHASA.find((b) => b.kode === kode)?.label || kode;
+}
+
 function Header({
   namaFile,
   onKembali,
@@ -65,17 +77,50 @@ function Header({
   );
 }
 
+function PilihanBahasa({
+  label,
+  terpilih,
+  onPilih,
+}: {
+  label: string;
+  terpilih: TranslateLanguage;
+  onPilih: (kode: TranslateLanguage) => void;
+}) {
+  return (
+    <View style={styles.blokBahasa}>
+      <Text style={styles.labelPanel}>{label}</Text>
+      <View style={styles.barisChip}>
+        {DAFTAR_BAHASA.map((bahasa) => (
+          <TouchableOpacity
+            key={bahasa.kode}
+            style={[styles.chipBahasa, terpilih === bahasa.kode && styles.chipBahasaAktif]}
+            onPress={() => onPilih(bahasa.kode)}
+          >
+            <Text style={[styles.teksChip, terpilih === bahasa.kode && styles.teksChipAktif]}>
+              {bahasa.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function PanelPengaturan({
   visible, onTutup, ukuranFont, setUkuranFont, modeGelap, setModeGelap,
+  bahasaSumber, setBahasaSumber, bahasaTujuan, setBahasaTujuan,
 }: {
   visible: boolean; onTutup: () => void; ukuranFont: number; setUkuranFont: (n: number) => void;
   modeGelap: boolean; setModeGelap: (b: boolean) => void;
+  bahasaSumber: TranslateLanguage; setBahasaSumber: (b: TranslateLanguage) => void;
+  bahasaTujuan: TranslateLanguage; setBahasaTujuan: (b: TranslateLanguage) => void;
 }) {
   return (
     <Modal visible={visible} transparent animationType="fade">
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onTutup}>
         <View style={styles.panelPengaturan}>
           <Text style={styles.judulPanel}>Pengaturan Baca</Text>
+
           <Text style={styles.labelPanel}>Ukuran Teks</Text>
           <View style={styles.barisFont}>
             <TouchableOpacity style={styles.tombolFont} onPress={() => setUkuranFont(Math.max(12, ukuranFont - 2))}>
@@ -86,12 +131,16 @@ function PanelPengaturan({
               <Text style={styles.teksTombolFont}>A+</Text>
             </TouchableOpacity>
           </View>
+
           <View style={styles.barisModeGelap}>
             <Text style={styles.labelPanel}>Mode Gelap</Text>
             <TouchableOpacity style={[styles.saklar, modeGelap && styles.saklarAktif]} onPress={() => setModeGelap(!modeGelap)}>
               <View style={[styles.bulatSaklar, modeGelap && styles.bulatSaklarAktif]} />
             </TouchableOpacity>
           </View>
+
+          <PilihanBahasa label="Dari Bahasa" terpilih={bahasaSumber} onPilih={setBahasaSumber} />
+          <PilihanBahasa label="Ke Bahasa" terpilih={bahasaTujuan} onPilih={setBahasaTujuan} />
         </View>
       </TouchableOpacity>
     </Modal>
@@ -123,7 +172,26 @@ export default function Index() {
   const [modeGelap, setModeGelap] = useState(false);
   const [panelPengaturanTerbuka, setPanelPengaturanTerbuka] = useState(false);
 
-  // Muat ulang daftar riwayat setiap kali layar awal ditampilkan
+  // Pengaturan bahasa terjemahan
+  const [bahasaSumber, setBahasaSumberAsli] = useState<TranslateLanguage>(TranslateLanguage.CHINESE);
+  const [bahasaTujuan, setBahasaTujuanAsli] = useState<TranslateLanguage>(TranslateLanguage.INDONESIAN);
+
+  // Kalau bahasa diganti, cache terjemahan lama sudah tidak relevan -> kosongkan
+  function setBahasaSumber(kode: TranslateLanguage) {
+    setBahasaSumberAsli(kode);
+    setCacheTerjemahanEpub({});
+    setHtmlDokumenTerjemahan(null);
+    setTeksTxtTerjemahan(null);
+    setModeTerjemahan(false);
+  }
+  function setBahasaTujuan(kode: TranslateLanguage) {
+    setBahasaTujuanAsli(kode);
+    setCacheTerjemahanEpub({});
+    setHtmlDokumenTerjemahan(null);
+    setTeksTxtTerjemahan(null);
+    setModeTerjemahan(false);
+  }
+
   useFocusEffect(
     useCallback(() => {
       if (!fileUri) {
@@ -132,7 +200,6 @@ export default function Index() {
     }, [fileUri])
   );
 
-  // Simpan progress bab EPUB setiap kali pindah bab
   useEffect(() => {
     if (tipeFile === "epub" && fileUri) {
       simpanRiwayat({ uri: fileUri, nama: namaFile, tipe: "epub", babTerakhir: babKe });
@@ -240,13 +307,13 @@ export default function Index() {
     try {
       if (tipeFile === "epub") {
         const asli = babEpub[babKe]?.html || "";
-        const hasil = await terjemahkanHtml(asli, TranslateLanguage.ENGLISH, TranslateLanguage.INDONESIAN);
+        const hasil = await terjemahkanHtml(asli, bahasaSumber, bahasaTujuan);
         setCacheTerjemahanEpub((prev) => ({ ...prev, [babKe]: hasil }));
       } else if (tipeFile === "docx") {
-        const hasil = await terjemahkanHtml(htmlDokumen, TranslateLanguage.ENGLISH, TranslateLanguage.INDONESIAN);
+        const hasil = await terjemahkanHtml(htmlDokumen, bahasaSumber, bahasaTujuan);
         setHtmlDokumenTerjemahan(hasil);
       } else if (tipeFile === "txt") {
-        const hasil = await terjemahkanTeksPolos(teksTxt, TranslateLanguage.ENGLISH, TranslateLanguage.INDONESIAN);
+        const hasil = await terjemahkanTeksPolos(teksTxt, bahasaSumber, bahasaTujuan);
         setTeksTxtTerjemahan(hasil);
       }
       setModeTerjemahan(true);
@@ -318,6 +385,10 @@ export default function Index() {
       setUkuranFont={setUkuranFont}
       modeGelap={modeGelap}
       setModeGelap={setModeGelap}
+      bahasaSumber={bahasaSumber}
+      setBahasaSumber={setBahasaSumber}
+      bahasaTujuan={bahasaTujuan}
+      setBahasaTujuan={setBahasaTujuan}
     />
   );
 
@@ -423,9 +494,18 @@ const styles = StyleSheet.create({
   tombolFont: { backgroundColor: "#F0F2F5", paddingVertical: 10, paddingHorizontal: 18, borderRadius: 8 },
   teksTombolFont: { fontSize: 16, fontWeight: "600", color: "#4A6FA5" },
   angkaFont: { marginHorizontal: 20, fontSize: 16, fontWeight: "600", color: "#2C3E50", minWidth: 30, textAlign: "center" },
-  barisModeGelap: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  barisModeGelap: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   saklar: { width: 50, height: 28, borderRadius: 14, backgroundColor: "#D0D0D0", padding: 3 },
   saklarAktif: { backgroundColor: "#4A6FA5" },
   bulatSaklar: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" },
   bulatSaklarAktif: { marginLeft: 22 },
+  blokBahasa: { marginTop: 12 },
+  barisChip: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chipBahasa: {
+    borderWidth: 1, borderColor: "#D0D0D0", borderRadius: 20,
+    paddingVertical: 8, paddingHorizontal: 16,
+  },
+  chipBahasaAktif: { backgroundColor: "#4A6FA5", borderColor: "#4A6FA5" },
+  teksChip: { color: "#2C3E50", fontSize: 13 },
+  teksChipAktif: { color: "#fff", fontWeight: "600" },
 });
