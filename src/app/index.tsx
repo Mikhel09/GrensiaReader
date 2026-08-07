@@ -178,6 +178,7 @@ export default function Index() {
 
   // Kalau bahasa diganti, cache terjemahan lama sudah tidak relevan -> kosongkan
   function setBahasaSumber(kode: TranslateLanguage) {
+    if (kode === bahasaSumber) return; // tidak berubah, tidak perlu hapus cache
     setBahasaSumberAsli(kode);
     setCacheTerjemahanEpub({});
     setHtmlDokumenTerjemahan(null);
@@ -185,6 +186,7 @@ export default function Index() {
     setModeTerjemahan(false);
   }
   function setBahasaTujuan(kode: TranslateLanguage) {
+    if (kode === bahasaTujuan) return;
     setBahasaTujuanAsli(kode);
     setCacheTerjemahanEpub({});
     setHtmlDokumenTerjemahan(null);
