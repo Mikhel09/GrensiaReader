@@ -18,7 +18,24 @@ const templateHtml = (base64: string) => `
       for (var i = 1; i <= pdf.numPages; i++) {
         var page = await pdf.getPage(i);
         var content = await page.getTextContent();
-        var teks = content.items.map(function(it){ return it.str; }).join(' ');
+        var teks = '';
+        var lastY = null;
+        for (var j = 0; j < content.items.length; j++) {
+        var it = content.items[j];
+        var y = it.transform[5];
+        if (lastY !== null) {
+            var deltaY = Math.abs(lastY - y);
+            if (deltaY > 18) {
+            teks += '\n\n';
+            } else if (deltaY > 4) {
+            teks += '\n';
+            } else {
+            teks += ' ';
+            }
+        }
+        teks += it.str;
+        lastY = y;
+        }
         hasil.push(teks);
       }
       window.ReactNativeWebView.postMessage(JSON.stringify({ sukses: true, data: hasil }));

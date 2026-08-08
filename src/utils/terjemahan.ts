@@ -171,9 +171,29 @@ export async function terjemahkanTeksPanjang(
   metode: MetodeTerjemahan
 ): Promise<string> {
   if (!teks.trim()) return teks;
-  const kalimat = pecahJadiKalimat(teks);
-  const hasil = await terjemahkanBanyakDigabung(kalimat, bahasaSumber, bahasaTujuan, metode);
-  return hasil.join(" ");
+
+  // Pisah dulu per paragraf (dipisah baris kosong), supaya jeda paragraf tidak hilang
+  const paragraf = teks.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  if (paragraf.length === 0) return teks;
+
+  const semuaKalimat: string[] = [];
+  const jumlahKalimatPerParagraf: number[] = [];
+  for (const p of paragraf) {
+    const kalimat = pecahJadiKalimat(p);
+    jumlahKalimatPerParagraf.push(kalimat.length);
+    semuaKalimat.push(...kalimat);
+  }
+
+  const hasilKalimat = await terjemahkanBanyakDigabung(semuaKalimat, bahasaSumber, bahasaTujuan, metode);
+
+  const paragrafHasil: string[] = [];
+  let idx = 0;
+  for (const jumlah of jumlahKalimatPerParagraf) {
+    paragrafHasil.push(hasilKalimat.slice(idx, idx + jumlah).join(" "));
+    idx += jumlah;
+  }
+
+  return paragrafHasil.join("\n\n");
 }
 
 export function ambilTeksPolos(html: string): string {
