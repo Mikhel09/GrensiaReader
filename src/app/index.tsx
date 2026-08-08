@@ -360,6 +360,7 @@ export default function Index() {
   const [pdfTeksPerHalaman, setPdfTeksPerHalaman] = useState<string[] | null>(null);
   const [pdfSedangEkstrak, setPdfSedangEkstrak] = useState(false);
   const [pdfErrorEkstrak, setPdfErrorEkstrak] = useState<string | null>(null);
+  const [pdfRetryKey, setPdfRetryKey] = useState(0);
   const [pdfHalaman, setPdfHalaman] = useState(1);
   const [pdfTotalHalaman, setPdfTotalHalaman] = useState(0);
   const [pdfPanelTerjemahanTerbuka, setPdfPanelTerjemahanTerbuka] = useState(false);
@@ -963,10 +964,21 @@ export default function Index() {
       {pdfErrorEkstrak && (
         <View style={styles.indikatorLatar}>
           <Text style={styles.teksIndikatorLatar}>{pdfErrorEkstrak}</Text>
+          <TouchableOpacity
+            onPress={() => {
+              setPdfErrorEkstrak(null);
+              setPdfSedangEkstrak(true);
+              setPdfRetryKey((k) => k + 1);
+            }}
+            style={{ marginLeft: 10 }}
+          >
+            <Text style={[styles.teksIndikatorLatar, { color: "#4A6FA5", fontWeight: "700" }]}>Coba Lagi</Text>
+          </TouchableOpacity>
         </View>
       )}
       {pdfBase64 && !pdfTeksPerHalaman && !pdfErrorEkstrak && (
         <EkstrakPdfTeks
+          key={pdfRetryKey}
           base64={pdfBase64}
           onSelesai={(hasil) => {
             setPdfTeksPerHalaman(hasil);
