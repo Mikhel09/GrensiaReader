@@ -100,18 +100,23 @@ export async function terjemahkanHtml(
   const bagian = html.split(/(<[^>]+>)/g);
 
   const indexTeks: number[] = [];
-  const teksUntukDiterjemahkan: string[] = [];
+  const intiTeks: string[] = [];
+  const spasiAwal: Record<number, string> = {};
+  const spasiAkhir: Record<number, string> = {};
 
   bagian.forEach((potongan, i) => {
     const adalahTag = potongan.startsWith("<");
     if (!adalahTag && potongan.trim()) {
+      const cocok = potongan.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      spasiAwal[i] = cocok ? cocok[1] : "";
+      spasiAkhir[i] = cocok ? cocok[3] : "";
       indexTeks.push(i);
-      teksUntukDiterjemahkan.push(potongan);
+      intiTeks.push(cocok ? cocok[2] : potongan);
     }
   });
 
   const hasilTerjemahan = await terjemahkanBanyakDigabung(
-    teksUntukDiterjemahkan,
+    intiTeks,
     bahasaSumber,
     bahasaTujuan,
     metode
@@ -119,7 +124,8 @@ export async function terjemahkanHtml(
 
   const bagianBaru = [...bagian];
   indexTeks.forEach((idx, i) => {
-    bagianBaru[idx] = hasilTerjemahan[i] ?? bagianBaru[idx];
+    const terjemahan = hasilTerjemahan[i] ?? intiTeks[i];
+    bagianBaru[idx] = (spasiAwal[idx] || "") + terjemahan + (spasiAkhir[idx] || "");
   });
 
   return bagianBaru.join("");

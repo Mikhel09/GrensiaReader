@@ -164,56 +164,6 @@ function PanelPencarian({
   );
 }
 
-function PanelTerjemahanPdf({
-  visible,
-  onTutup,
-  halaman,
-  totalHalaman,
-  sedangProses,
-  teks,
-  sedangProsesLatar,
-}: {
-  visible: boolean;
-  onTutup: () => void;
-  halaman: number;
-  totalHalaman: number;
-  sedangProses: boolean;
-  teks: string;
-  sedangProsesLatar: boolean;
-}) {
-  return (
-    <Modal visible={visible} animationType="slide">
-      <SafeAreaView style={styles.containerBaca}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onTutup} style={styles.tombolKembali}>
-            <Text style={styles.teksKembali}>‹ Tutup</Text>
-          </TouchableOpacity>
-          <Text style={styles.namaFileHeader}>
-            Terjemahan — Halaman {halaman}
-            {totalHalaman ? ` / ${totalHalaman}` : ""}
-          </Text>
-        </View>
-        {sedangProses ? (
-          <View style={styles.container}>
-            <ActivityIndicator size="large" color="#4A6FA5" />
-            <Text style={styles.teksLoading}>Menerjemahkan halaman ini...</Text>
-          </View>
-        ) : (
-          <ScrollView style={styles.isiTerjemahanPdf}>
-            <Text style={styles.teksTerjemahanPdf}>{teks || "Belum ada terjemahan untuk halaman ini."}</Text>
-          </ScrollView>
-        )}
-        {sedangProsesLatar && (
-          <View style={styles.indikatorLatar}>
-            <ActivityIndicator size="small" color="#4A6FA5" />
-            <Text style={styles.teksIndikatorLatar}>Menerjemahkan halaman lainnya di latar belakang...</Text>
-          </View>
-        )}
-      </SafeAreaView>
-    </Modal>
-  );
-}
-
 function PilihanBahasa({
   label,
   terpilih,
@@ -363,7 +313,7 @@ export default function Index() {
   const [pdfRetryKey, setPdfRetryKey] = useState(0);
   const [pdfHalaman, setPdfHalaman] = useState(1);
   const [pdfTotalHalaman, setPdfTotalHalaman] = useState(0);
-  const [pdfPanelTerjemahanTerbuka, setPdfPanelTerjemahanTerbuka] = useState(false);
+  const [panelTerjemahanPdfTerbuka, setPanelTerjemahanPdfTerbuka] = useState(false);
   const [pdfSedangMenerjemahkanHalaman, setPdfSedangMenerjemahkanHalaman] = useState(false);
   const [sedangProsesLatarPdf, setSedangProsesLatarPdf] = useState(false);
   const [cachePdfTerjemahan, setCachePdfTerjemahan] = useState<Record<number, string>>({});
@@ -395,7 +345,7 @@ export default function Index() {
     cachePdfRef.current = {};
     setCachePdfTerjemahan({});
     setSedangProsesLatarPdf(false);
-    setPdfPanelTerjemahanTerbuka(false);
+    setPanelTerjemahanPdfTerbuka(false);
   }
 
   function setBahasaSumber(bahasa: Bahasa) {
@@ -428,6 +378,22 @@ export default function Index() {
     }
   }, [babKe, tipeFile, fileUri, namaFile]);
 
+  // Auto-terjemahkan halaman PDF yang sedang dibuka setiap kali pindah halaman,
+  // selama panel terjemahan sedang terbuka.
+  useEffect(() => {
+    if (tipeFile === "pdf" && panelTerjemahanPdfTerbuka && pdfTeksPerHalaman) {
+      const token = tokenSesiRef.current;
+      const idx = pdfHalaman - 1;
+      if (!cachePdfRef.current[idx]) {
+        setPdfSedangMenerjemahkanHalaman(true);
+        pastikanHalamanPdfTerjemahan(pdfTeksPerHalaman, idx, token, bahasaSumber, bahasaTujuan, metode).finally(() => {
+          if (token === tokenSesiRef.current) setPdfSedangMenerjemahkanHalaman(false);
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfHalaman, panelTerjemahanPdfTerbuka, pdfTeksPerHalaman]);
+
   function bersihkanPencarian() {
     setKueriPencarian("");
     setHasilPencarian([]);
@@ -440,7 +406,7 @@ export default function Index() {
     setPdfErrorEkstrak(null);
     setPdfHalaman(1);
     setPdfTotalHalaman(0);
-    setPdfPanelTerjemahanTerbuka(false);
+    setPanelTerjemahanPdfTerbuka(false);
     setPdfSedangMenerjemahkanHalaman(false);
     setSedangProsesLatarPdf(false);
     cachePdfRef.current = {};
@@ -497,7 +463,6 @@ export default function Index() {
       } else {
         setTipeFile("pdf");
         await simpanRiwayat({ uri, nama, tipe: "pdf", babTerakhir: 0 });
-        // Mulai ekstraksi teks di latar belakang
         setPdfSedangEkstrak(true);
         try {
           const base64 = await FileSystem.readAsStringAsync(uri, {
@@ -543,7 +508,7 @@ export default function Index() {
     setDaftarRiwayat(await ambilRiwayat());
   }
 
-  // --- Logika terjemahan EPUB (tidak berubah) ---
+  // --- Logika terjemahan EPUB ---
   async function pastikanBabTerjemahan(
     daftarBab: BabEpub[],
     index: number,
@@ -604,7 +569,7 @@ export default function Index() {
     }
   }
 
-  // --- Logika terjemahan PDF (baru) ---
+  // --- Logika terjemahan PDF ---
   async function pastikanHalamanPdfTerjemahan(
     daftarHalaman: string[],
     index: number,
@@ -652,11 +617,16 @@ export default function Index() {
     })();
   }
 
-  async function bukaPanelTerjemahanPdf() {
+  async function toggleTerjemahanPdf() {
+    if (panelTerjemahanPdfTerbuka) {
+      setPanelTerjemahanPdfTerbuka(false);
+      return;
+    }
     if (!pdfTeksPerHalaman) return;
+
     const token = tokenSesiRef.current;
     const idx = pdfHalaman - 1;
-    setPdfPanelTerjemahanTerbuka(true);
+    setPanelTerjemahanPdfTerbuka(true);
 
     if (!cachePdfRef.current[idx]) {
       setPdfSedangMenerjemahkanHalaman(true);
@@ -939,22 +909,26 @@ export default function Index() {
         namaFile={namaFile}
         onKembali={kembaliKeAwal}
         tampilkanFiturDokumen={pdfSiap}
-        labelTombolTerjemahan="Terjemahkan"
-        sedangMenerjemahkan={pdfSedangMenerjemahkanHalaman}
-        onToggleTerjemahan={bukaPanelTerjemahanPdf}
+        labelTombolTerjemahan={panelTerjemahanPdfTerbuka ? "Sembunyikan" : "Terjemahkan"}
+        sedangMenerjemahkan={false}
+        onToggleTerjemahan={toggleTerjemahanPdf}
         onBukaPengaturan={() => setPanelPengaturanTerbuka(true)}
         onBukaPencarian={() => setPencarianTerbuka(true)}
       />
-      <Pdf
-        source={{ uri: fileUri, cache: true }}
-        style={styles.pdf}
-        page={pdfHalaman}
-        onPageChanged={(halaman, total) => {
-          setPdfHalaman(halaman);
-          setPdfTotalHalaman(total);
-        }}
-        onError={(error) => console.log("Error membuka PDF:", error)}
-      />
+
+      <View style={{ flex: panelTerjemahanPdfTerbuka ? 0.55 : 1 }}>
+        <Pdf
+          source={{ uri: fileUri, cache: true }}
+          style={styles.pdf}
+          page={pdfHalaman}
+          onPageChanged={(halaman, total) => {
+            setPdfHalaman(halaman);
+            setPdfTotalHalaman(total);
+          }}
+          onError={(error) => console.log("Error membuka PDF:", error)}
+        />
+      </View>
+
       {pdfSedangEkstrak && (
         <View style={styles.indikatorLatar}>
           <ActivityIndicator size="small" color="#4A6FA5" />
@@ -991,17 +965,38 @@ export default function Index() {
           }}
         />
       )}
+
+      {panelTerjemahanPdfTerbuka && (
+        <View style={styles.panelTerjemahanPdfBawah}>
+          <View style={styles.headerTerjemahanPdfKecil}>
+            <Text style={styles.labelTerjemahanPdfKecil}>
+              Terjemahan — Halaman {pdfHalaman}
+              {pdfTotalHalaman ? ` / ${pdfTotalHalaman}` : ""}
+            </Text>
+          </View>
+          {pdfSedangMenerjemahkanHalaman ? (
+            <View style={styles.container}>
+              <ActivityIndicator size="small" color="#4A6FA5" />
+              <Text style={styles.teksLoading}>Menerjemahkan halaman ini...</Text>
+            </View>
+          ) : (
+            <ScrollView style={styles.isiTerjemahanPdf}>
+              <Text style={styles.teksTerjemahanPdf}>
+                {cachePdfTerjemahan[pdfHalaman - 1] || "Belum ada terjemahan untuk halaman ini."}
+              </Text>
+            </ScrollView>
+          )}
+          {sedangProsesLatarPdf && (
+            <View style={styles.indikatorLatar}>
+              <ActivityIndicator size="small" color="#4A6FA5" />
+              <Text style={styles.teksIndikatorLatar}>Menerjemahkan halaman lainnya di latar belakang...</Text>
+            </View>
+          )}
+        </View>
+      )}
+
       {panel}
       {panelCari}
-      <PanelTerjemahanPdf
-        visible={pdfPanelTerjemahanTerbuka}
-        onTutup={() => setPdfPanelTerjemahanTerbuka(false)}
-        halaman={pdfHalaman}
-        totalHalaman={pdfTotalHalaman}
-        sedangProses={pdfSedangMenerjemahkanHalaman}
-        teks={cachePdfTerjemahan[pdfHalaman - 1] || ""}
-        sedangProsesLatar={sedangProsesLatarPdf}
-      />
     </SafeAreaView>
   );
 }
@@ -1098,4 +1093,22 @@ const styles = StyleSheet.create({
   teksKosongCari: { textAlign: "center", color: "#7F8C8D", marginTop: 40 },
   isiTerjemahanPdf: { padding: 16 },
   teksTerjemahanPdf: { fontSize: 16, lineHeight: 24, color: "#2C3E50" },
+  panelTerjemahanPdfBawah: {
+    flex: 0.45,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E5E5",
+    backgroundColor: "#F7F8FA",
+  },
+  headerTerjemahanPdfKecil: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5E5",
+    backgroundColor: "#fff",
+  },
+  labelTerjemahanPdfKecil: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#2C3E50",
+  },
 });
