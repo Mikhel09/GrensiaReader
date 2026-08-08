@@ -1,5 +1,6 @@
 import { bukaDocx } from "@/utils/docxReader";
 import { BabEpub, bukaEpub } from "@/utils/epubReader";
+import { EkstrakPdfTeks } from "@/utils/pdfEkstrak";
 import { cariDalamTeks } from "@/utils/pencarian";
 import { ambilRiwayat, BukuRiwayat, hapusRiwayat, simpanRiwayat } from "@/utils/riwayat";
 import { bungkusHtml } from "@/utils/tampilan";
@@ -9,6 +10,7 @@ import {
   DAFTAR_BAHASA,
   MetodeTerjemahan,
   terjemahkanHtml,
+  terjemahkanTeksPanjang,
   terjemahkanTeksPolos,
 } from "@/utils/terjemahan";
 import * as DocumentPicker from "expo-document-picker";
@@ -20,6 +22,7 @@ import {
   Button,
   FlatList,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -43,7 +46,7 @@ function Header({
   namaFile,
   onKembali,
   tampilkanFiturDokumen,
-  modeTerjemahan,
+  labelTombolTerjemahan,
   sedangMenerjemahkan,
   onToggleTerjemahan,
   onBukaPengaturan,
@@ -52,7 +55,7 @@ function Header({
   namaFile: string;
   onKembali: () => void;
   tampilkanFiturDokumen: boolean;
-  modeTerjemahan: boolean;
+  labelTombolTerjemahan: string;
   sedangMenerjemahkan: boolean;
   onToggleTerjemahan: () => void;
   onBukaPengaturan: () => void;
@@ -76,7 +79,7 @@ function Header({
           {sedangMenerjemahkan ? (
             <ActivityIndicator size="small" color="#4A6FA5" />
           ) : (
-            <Text style={styles.teksKembali}>{modeTerjemahan ? "Teks Asli" : "Terjemahkan"}</Text>
+            <Text style={styles.teksKembali}>{labelTombolTerjemahan}</Text>
           )}
         </TouchableOpacity>
       )}
@@ -95,7 +98,7 @@ function PanelPencarian({
   onCari,
   sedangMencari,
   hasil,
-  tampilkanBab,
+  labelSatuan,
   onTekanHasil,
 }: {
   visible: boolean;
@@ -105,7 +108,7 @@ function PanelPencarian({
   onCari: () => void;
   sedangMencari: boolean;
   hasil: HasilCariTampil[];
-  tampilkanBab: boolean;
+  labelSatuan: string | null;
   onTekanHasil: (item: HasilCariTampil) => void;
 }) {
   return (
@@ -146,13 +149,65 @@ function PanelPencarian({
             }
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.itemHasilCari} onPress={() => onTekanHasil(item)}>
-                {tampilkanBab && item.babIndex !== null && (
-                  <Text style={styles.labelBabHasil}>Bab {item.babIndex + 1}</Text>
+                {labelSatuan && item.babIndex !== null && (
+                  <Text style={styles.labelBabHasil}>
+                    {labelSatuan} {item.babIndex + 1}
+                  </Text>
                 )}
                 <Text style={styles.cuplikanHasil}>{item.cuplikan}</Text>
               </TouchableOpacity>
             )}
           />
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+function PanelTerjemahanPdf({
+  visible,
+  onTutup,
+  halaman,
+  totalHalaman,
+  sedangProses,
+  teks,
+  sedangProsesLatar,
+}: {
+  visible: boolean;
+  onTutup: () => void;
+  halaman: number;
+  totalHalaman: number;
+  sedangProses: boolean;
+  teks: string;
+  sedangProsesLatar: boolean;
+}) {
+  return (
+    <Modal visible={visible} animationType="slide">
+      <SafeAreaView style={styles.containerBaca}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onTutup} style={styles.tombolKembali}>
+            <Text style={styles.teksKembali}>‹ Tutup</Text>
+          </TouchableOpacity>
+          <Text style={styles.namaFileHeader}>
+            Terjemahan — Halaman {halaman}
+            {totalHalaman ? ` / ${totalHalaman}` : ""}
+          </Text>
+        </View>
+        {sedangProses ? (
+          <View style={styles.container}>
+            <ActivityIndicator size="large" color="#4A6FA5" />
+            <Text style={styles.teksLoading}>Menerjemahkan halaman ini...</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.isiTerjemahanPdf}>
+            <Text style={styles.teksTerjemahanPdf}>{teks || "Belum ada terjemahan untuk halaman ini."}</Text>
+          </ScrollView>
+        )}
+        {sedangProsesLatar && (
+          <View style={styles.indikatorLatar}>
+            <ActivityIndicator size="small" color="#4A6FA5" />
+            <Text style={styles.teksIndikatorLatar}>Menerjemahkan halaman lainnya di latar belakang...</Text>
+          </View>
         )}
       </SafeAreaView>
     </Modal>
@@ -300,6 +355,20 @@ export default function Index() {
   const [hasilPencarian, setHasilPencarian] = useState<HasilCariTampil[]>([]);
   const [sedangMencari, setSedangMencari] = useState(false);
 
+  // --- Khusus PDF ---
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const [pdfTeksPerHalaman, setPdfTeksPerHalaman] = useState<string[] | null>(null);
+  const [pdfSedangEkstrak, setPdfSedangEkstrak] = useState(false);
+  const [pdfErrorEkstrak, setPdfErrorEkstrak] = useState<string | null>(null);
+  const [pdfHalaman, setPdfHalaman] = useState(1);
+  const [pdfTotalHalaman, setPdfTotalHalaman] = useState(0);
+  const [pdfPanelTerjemahanTerbuka, setPdfPanelTerjemahanTerbuka] = useState(false);
+  const [pdfSedangMenerjemahkanHalaman, setPdfSedangMenerjemahkanHalaman] = useState(false);
+  const [sedangProsesLatarPdf, setSedangProsesLatarPdf] = useState(false);
+  const [cachePdfTerjemahan, setCachePdfTerjemahan] = useState<Record<number, string>>({});
+  const cachePdfRef = useRef<Record<number, string>>({});
+  const sedangLatarPdfRef = useRef(false);
+
   const cacheRef = useRef<Record<number, string>>({});
   const tokenSesiRef = useRef(0);
   const sedangLatarRef = useRef(false);
@@ -307,6 +376,11 @@ export default function Index() {
   function updateCacheBab(index: number, html: string) {
     cacheRef.current = { ...cacheRef.current, [index]: html };
     setCacheTerjemahanEpub(cacheRef.current);
+  }
+
+  function updateCachePdf(index: number, teks: string) {
+    cachePdfRef.current = { ...cachePdfRef.current, [index]: teks };
+    setCachePdfTerjemahan(cachePdfRef.current);
   }
 
   function bersihkanCacheTerjemahan() {
@@ -317,6 +391,10 @@ export default function Index() {
     setTeksTxtTerjemahan(null);
     setModeTerjemahan(false);
     setSedangProsesLatar(false);
+    cachePdfRef.current = {};
+    setCachePdfTerjemahan({});
+    setSedangProsesLatarPdf(false);
+    setPdfPanelTerjemahanTerbuka(false);
   }
 
   function setBahasaSumber(bahasa: Bahasa) {
@@ -354,6 +432,21 @@ export default function Index() {
     setHasilPencarian([]);
   }
 
+  function bersihkanStatePdf() {
+    setPdfBase64(null);
+    setPdfTeksPerHalaman(null);
+    setPdfSedangEkstrak(false);
+    setPdfErrorEkstrak(null);
+    setPdfHalaman(1);
+    setPdfTotalHalaman(0);
+    setPdfPanelTerjemahanTerbuka(false);
+    setPdfSedangMenerjemahkanHalaman(false);
+    setSedangProsesLatarPdf(false);
+    cachePdfRef.current = {};
+    setCachePdfTerjemahan({});
+    sedangLatarPdfRef.current = false;
+  }
+
   function kembaliKeAwal() {
     tokenSesiRef.current += 1;
     cacheRef.current = {};
@@ -370,6 +463,7 @@ export default function Index() {
     setModeTerjemahan(false);
     setSedangProsesLatar(false);
     bersihkanPencarian();
+    bersihkanStatePdf();
   }
 
   async function bukaFileDenganUri(uri: string, nama: string, babAwal: number = 0) {
@@ -377,6 +471,7 @@ export default function Index() {
     tokenSesiRef.current += 1;
     cacheRef.current = {};
     bersihkanPencarian();
+    bersihkanStatePdf();
     setLoading(true);
     try {
       if (namaLower.endsWith(".epub")) {
@@ -401,6 +496,18 @@ export default function Index() {
       } else {
         setTipeFile("pdf");
         await simpanRiwayat({ uri, nama, tipe: "pdf", babTerakhir: 0 });
+        // Mulai ekstraksi teks di latar belakang
+        setPdfSedangEkstrak(true);
+        try {
+          const base64 = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          setPdfBase64(base64);
+        } catch (err) {
+          console.log("Gagal membaca PDF untuk ekstraksi:", err);
+          setPdfSedangEkstrak(false);
+          setPdfErrorEkstrak("Gagal membaca file PDF.");
+        }
       }
       setFileUri(uri);
       setNamaFile(nama);
@@ -435,6 +542,7 @@ export default function Index() {
     setDaftarRiwayat(await ambilRiwayat());
   }
 
+  // --- Logika terjemahan EPUB (tidak berubah) ---
   async function pastikanBabTerjemahan(
     daftarBab: BabEpub[],
     index: number,
@@ -493,6 +601,73 @@ export default function Index() {
         if (token === tokenSesiRef.current) setSedangMenerjemahkan(false);
       });
     }
+  }
+
+  // --- Logika terjemahan PDF (baru) ---
+  async function pastikanHalamanPdfTerjemahan(
+    daftarHalaman: string[],
+    index: number,
+    token: number,
+    bSumber: Bahasa,
+    bTujuan: Bahasa,
+    m: MetodeTerjemahan
+  ) {
+    if (cachePdfRef.current[index]) return;
+    const asli = daftarHalaman[index] || "";
+    const hasil = await terjemahkanTeksPanjang(asli, bSumber, bTujuan, m);
+    if (token === tokenSesiRef.current) {
+      updateCachePdf(index, hasil);
+    }
+  }
+
+  function mulaiTerjemahkanSemuaHalamanDiLatar(
+    daftarHalaman: string[],
+    halamanAwalIndex: number,
+    token: number,
+    bSumber: Bahasa,
+    bTujuan: Bahasa,
+    m: MetodeTerjemahan
+  ) {
+    if (sedangLatarPdfRef.current) return;
+    sedangLatarPdfRef.current = true;
+    setSedangProsesLatarPdf(true);
+
+    const urutan: number[] = [];
+    for (let i = halamanAwalIndex + 1; i < daftarHalaman.length; i++) urutan.push(i);
+    for (let i = 0; i < halamanAwalIndex; i++) urutan.push(i);
+
+    (async () => {
+      for (const i of urutan) {
+        if (token !== tokenSesiRef.current) break;
+        if (cachePdfRef.current[i]) continue;
+        try {
+          await pastikanHalamanPdfTerjemahan(daftarHalaman, i, token, bSumber, bTujuan, m);
+        } catch (err) {
+          console.log("Gagal menerjemahkan halaman PDF di latar (" + (i + 1) + "):", err);
+        }
+      }
+      sedangLatarPdfRef.current = false;
+      if (token === tokenSesiRef.current) setSedangProsesLatarPdf(false);
+    })();
+  }
+
+  async function bukaPanelTerjemahanPdf() {
+    if (!pdfTeksPerHalaman) return;
+    const token = tokenSesiRef.current;
+    const idx = pdfHalaman - 1;
+    setPdfPanelTerjemahanTerbuka(true);
+
+    if (!cachePdfRef.current[idx]) {
+      setPdfSedangMenerjemahkanHalaman(true);
+      try {
+        await pastikanHalamanPdfTerjemahan(pdfTeksPerHalaman, idx, token, bahasaSumber, bahasaTujuan, metode);
+      } catch (err) {
+        console.log("Gagal menerjemahkan halaman:", err);
+      }
+      setPdfSedangMenerjemahkanHalaman(false);
+    }
+
+    mulaiTerjemahkanSemuaHalamanDiLatar(pdfTeksPerHalaman, idx, token, bahasaSumber, bahasaTujuan, metode);
   }
 
   async function toggleTerjemahan() {
@@ -571,6 +746,13 @@ export default function Index() {
       } else if (tipeFile === "txt") {
         const hasilDoc = cariDalamTeks(teksTxt, kueriPencarian, 30);
         setHasilPencarian(hasilDoc.map((h) => ({ babIndex: null, cuplikan: h.cuplikan })));
+      } else if (tipeFile === "pdf" && pdfTeksPerHalaman) {
+        const semuaHasil: HasilCariTampil[] = [];
+        pdfTeksPerHalaman.forEach((teksHalaman, i) => {
+          const hasilHalaman = cariDalamTeks(teksHalaman, kueriPencarian, 5);
+          hasilHalaman.forEach((h) => semuaHasil.push({ babIndex: i, cuplikan: h.cuplikan }));
+        });
+        setHasilPencarian(semuaHasil);
       }
     } finally {
       setSedangMencari(false);
@@ -581,6 +763,8 @@ export default function Index() {
     if (tipeFile === "epub" && item.babIndex !== null) {
       setBabKe(item.babIndex);
       setModeTerjemahan(false);
+    } else if (tipeFile === "pdf" && item.babIndex !== null) {
+      setPdfHalaman(item.babIndex + 1);
     }
     setPencarianTerbuka(false);
   }
@@ -664,7 +848,7 @@ export default function Index() {
       onCari={jalankanPencarian}
       sedangMencari={sedangMencari}
       hasil={hasilPencarian}
-      tampilkanBab={tipeFile === "epub"}
+      labelSatuan={tipeFile === "epub" ? "Bab" : tipeFile === "pdf" ? "Halaman" : null}
       onTekanHasil={tekanHasilPencarian}
     />
   );
@@ -678,7 +862,7 @@ export default function Index() {
           namaFile={namaFile}
           onKembali={kembaliKeAwal}
           tampilkanFiturDokumen
-          modeTerjemahan={modeTerjemahan}
+          labelTombolTerjemahan={modeTerjemahan ? "Teks Asli" : "Terjemahkan"}
           sedangMenerjemahkan={sedangMenerjemahkan}
           onToggleTerjemahan={toggleTerjemahan}
           onBukaPengaturan={() => setPanelPengaturanTerbuka(true)}
@@ -710,7 +894,7 @@ export default function Index() {
           namaFile={namaFile}
           onKembali={kembaliKeAwal}
           tampilkanFiturDokumen
-          modeTerjemahan={modeTerjemahan}
+          labelTombolTerjemahan={modeTerjemahan ? "Teks Asli" : "Terjemahkan"}
           sedangMenerjemahkan={sedangMenerjemahkan}
           onToggleTerjemahan={toggleTerjemahan}
           onBukaPengaturan={() => setPanelPengaturanTerbuka(true)}
@@ -732,7 +916,7 @@ export default function Index() {
           namaFile={namaFile}
           onKembali={kembaliKeAwal}
           tampilkanFiturDokumen
-          modeTerjemahan={modeTerjemahan}
+          labelTombolTerjemahan={modeTerjemahan ? "Teks Asli" : "Terjemahkan"}
           sedangMenerjemahkan={sedangMenerjemahkan}
           onToggleTerjemahan={toggleTerjemahan}
           onBukaPengaturan={() => setPanelPengaturanTerbuka(true)}
@@ -745,20 +929,67 @@ export default function Index() {
     );
   }
 
+  // --- Tampilan PDF ---
+  const pdfSiap = !!pdfTeksPerHalaman;
+
   return (
     <SafeAreaView style={[styles.containerBaca, modeGelap && styles.containerGelap]} edges={["top"]}>
       <Header
         namaFile={namaFile}
         onKembali={kembaliKeAwal}
-        tampilkanFiturDokumen={false}
-        modeTerjemahan={false}
-        sedangMenerjemahkan={false}
-        onToggleTerjemahan={() => {}}
+        tampilkanFiturDokumen={pdfSiap}
+        labelTombolTerjemahan="Terjemahkan"
+        sedangMenerjemahkan={pdfSedangMenerjemahkanHalaman}
+        onToggleTerjemahan={bukaPanelTerjemahanPdf}
         onBukaPengaturan={() => setPanelPengaturanTerbuka(true)}
-        onBukaPencarian={() => {}}
+        onBukaPencarian={() => setPencarianTerbuka(true)}
       />
-      <Pdf source={{ uri: fileUri, cache: true }} style={styles.pdf} onError={(error) => console.log("Error membuka PDF:", error)} />
+      <Pdf
+        source={{ uri: fileUri, cache: true }}
+        style={styles.pdf}
+        page={pdfHalaman}
+        onPageChanged={(halaman, total) => {
+          setPdfHalaman(halaman);
+          setPdfTotalHalaman(total);
+        }}
+        onError={(error) => console.log("Error membuka PDF:", error)}
+      />
+      {pdfSedangEkstrak && (
+        <View style={styles.indikatorLatar}>
+          <ActivityIndicator size="small" color="#4A6FA5" />
+          <Text style={styles.teksIndikatorLatar}>Menyiapkan pencarian & terjemahan...</Text>
+        </View>
+      )}
+      {pdfErrorEkstrak && (
+        <View style={styles.indikatorLatar}>
+          <Text style={styles.teksIndikatorLatar}>{pdfErrorEkstrak}</Text>
+        </View>
+      )}
+      {pdfBase64 && !pdfTeksPerHalaman && !pdfErrorEkstrak && (
+        <EkstrakPdfTeks
+          base64={pdfBase64}
+          onSelesai={(hasil) => {
+            setPdfTeksPerHalaman(hasil);
+            setPdfSedangEkstrak(false);
+          }}
+          onError={(pesan) => {
+            console.log("Gagal ekstrak PDF:", pesan);
+            setPdfSedangEkstrak(false);
+            setPdfErrorEkstrak("Teks tidak dapat diambil (kemungkinan PDF hasil scan).");
+          }}
+        />
+      )}
       {panel}
+      {panelCari}
+      <PanelTerjemahanPdf
+        visible={pdfPanelTerjemahanTerbuka}
+        onTutup={() => setPdfPanelTerjemahanTerbuka(false)}
+        halaman={pdfHalaman}
+        totalHalaman={pdfTotalHalaman}
+        sedangProses={pdfSedangMenerjemahkanHalaman}
+        teks={cachePdfTerjemahan[pdfHalaman - 1] || ""}
+        sedangProsesLatar={sedangProsesLatarPdf}
+      />
     </SafeAreaView>
   );
 }
@@ -853,4 +1084,6 @@ const styles = StyleSheet.create({
   labelBabHasil: { fontSize: 12, fontWeight: "700", color: "#4A6FA5", marginBottom: 4 },
   cuplikanHasil: { fontSize: 14, color: "#2C3E50", lineHeight: 20 },
   teksKosongCari: { textAlign: "center", color: "#7F8C8D", marginTop: 40 },
+  isiTerjemahanPdf: { padding: 16 },
+  teksTerjemahanPdf: { fontSize: 16, lineHeight: 24, color: "#2C3E50" },
 });

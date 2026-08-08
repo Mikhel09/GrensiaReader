@@ -157,6 +157,31 @@ export async function terjemahkanTeksPolos(
   return barisBaru.join("\n");
 }
 
+function pecahTeksPanjang(teks: string, panjangMaks = 700): string[] {
+  const potongan: string[] = [];
+  let sisa = teks.trim();
+  while (sisa.length > panjangMaks) {
+    let batas = sisa.lastIndexOf(" ", panjangMaks);
+    if (batas <= 0) batas = panjangMaks;
+    potongan.push(sisa.slice(0, batas).trim());
+    sisa = sisa.slice(batas).trim();
+  }
+  if (sisa) potongan.push(sisa);
+  return potongan;
+}
+
+export async function terjemahkanTeksPanjang(
+  teks: string,
+  bahasaSumber: Bahasa,
+  bahasaTujuan: Bahasa,
+  metode: MetodeTerjemahan
+): Promise<string> {
+  if (!teks.trim()) return teks;
+  const potongan = pecahTeksPanjang(teks);
+  const hasil = await terjemahkanBanyakDigabung(potongan, bahasaSumber, bahasaTujuan, metode);
+  return hasil.join(" ");
+}
+
 export function ambilTeksPolos(html: string): string {
   return html
     .replace(/<[^>]*>/g, " ")
