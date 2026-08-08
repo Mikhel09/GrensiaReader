@@ -157,17 +157,11 @@ export async function terjemahkanTeksPolos(
   return barisBaru.join("\n");
 }
 
-function pecahTeksPanjang(teks: string, panjangMaks = 700): string[] {
-  const potongan: string[] = [];
-  let sisa = teks.trim();
-  while (sisa.length > panjangMaks) {
-    let batas = sisa.lastIndexOf(" ", panjangMaks);
-    if (batas <= 0) batas = panjangMaks;
-    potongan.push(sisa.slice(0, batas).trim());
-    sisa = sisa.slice(batas).trim();
-  }
-  if (sisa) potongan.push(sisa);
-  return potongan;
+// Pisah teks jadi per-kalimat (bukan potong sembarangan), supaya konteks kalimat tetap utuh
+function pecahJadiKalimat(teks: string): string[] {
+  const teksBersih = teks.replace(/\s+/g, " ").trim();
+  const kalimat = teksBersih.match(/[^.!?]+[.!?]+(\s+|$)|[^.!?]+$/g);
+  return kalimat ? kalimat.map((s) => s.trim()).filter(Boolean) : [teksBersih];
 }
 
 export async function terjemahkanTeksPanjang(
@@ -177,8 +171,8 @@ export async function terjemahkanTeksPanjang(
   metode: MetodeTerjemahan
 ): Promise<string> {
   if (!teks.trim()) return teks;
-  const potongan = pecahTeksPanjang(teks);
-  const hasil = await terjemahkanBanyakDigabung(potongan, bahasaSumber, bahasaTujuan, metode);
+  const kalimat = pecahJadiKalimat(teks);
+  const hasil = await terjemahkanBanyakDigabung(kalimat, bahasaSumber, bahasaTujuan, metode);
   return hasil.join(" ");
 }
 
