@@ -170,6 +170,15 @@ function pecahJadiKalimat(teks: string): string[] {
   return kalimat ? kalimat.map((s) => s.trim()).filter(Boolean) : [teksBersih];
 }
 
+function bersihkanSpasi(teks: string): string {
+  return teks
+    .replace(/[ \t]+/g, " ")                 // spasi ganda jadi satu
+    .replace(/[ \t]+([.,!?;:])/g, "$1")      // hapus spasi sebelum tanda baca
+    .replace(/([("\u201c])\s+/g, "$1")       // hapus spasi setelah kutip/kurung buka
+    .replace(/\s+([)"\u201d])/g, "$1")       // hapus spasi sebelum kutip/kurung tutup
+    .trim();
+}
+
 export async function terjemahkanTeksPanjang(
   teks: string,
   bahasaSumber: Bahasa,
@@ -178,7 +187,6 @@ export async function terjemahkanTeksPanjang(
 ): Promise<string> {
   if (!teks.trim()) return teks;
 
-  // Pisah dulu per paragraf (dipisah baris kosong), supaya jeda paragraf tidak hilang
   const paragraf = teks.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   if (paragraf.length === 0) return teks;
 
@@ -195,7 +203,8 @@ export async function terjemahkanTeksPanjang(
   const paragrafHasil: string[] = [];
   let idx = 0;
   for (const jumlah of jumlahKalimatPerParagraf) {
-    paragrafHasil.push(hasilKalimat.slice(idx, idx + jumlah).join(" "));
+    const gabunganParagraf = hasilKalimat.slice(idx, idx + jumlah).join(" ");
+    paragrafHasil.push(bersihkanSpasi(gabunganParagraf));
     idx += jumlah;
   }
 
