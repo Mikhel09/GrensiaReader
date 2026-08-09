@@ -31,7 +31,7 @@ export default function Index() {
   const [metode, setMetode] = useState<MetodeTerjemahan>("google");
 
   const terjemahanEpub = useTerjemahanEpub(dok.babEpub, bahasaSumber, bahasaTujuan, metode);
-  const terjemahanPdf = useTerjemahanPdf(dok.pdfTeksPerHalaman, bahasaSumber, bahasaTujuan, metode);
+  const terjemahanPdf = useTerjemahanPdf(dok.pdfTeksUntukTerjemahan, bahasaSumber, bahasaTujuan, metode);
   const terjemahanDocx = useTerjemahanDokumen(dok.htmlDokumen, "html", bahasaSumber, bahasaTujuan, metode);
   const terjemahanTxt = useTerjemahanDokumen(dok.teksTxt, "teks", bahasaSumber, bahasaTujuan, metode);
 

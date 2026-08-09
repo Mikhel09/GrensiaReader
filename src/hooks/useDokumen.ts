@@ -2,10 +2,12 @@ import { TipeFile } from "@/types/reader";
 import { bukaDocx } from "@/utils/docxReader";
 import { BabEpub, bukaEpub } from "@/utils/epubReader";
 import { ambilRiwayat, BukuRiwayat, hapusRiwayat, simpanRiwayat } from "@/utils/riwayat";
+import { gabungkanKalimatLintasHalaman } from "@/utils/terjemahan";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
+
 
 export function useDokumen() {
   const [fileUri, setFileUri] = useState<string | null>(null);
@@ -23,6 +25,7 @@ export function useDokumen() {
 
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [pdfTeksPerHalaman, setPdfTeksPerHalaman] = useState<string[] | null>(null);
+  const [pdfTeksUntukTerjemahan, setPdfTeksUntukTerjemahan] = useState<string[] | null>(null);
   const [pdfSedangEkstrak, setPdfSedangEkstrak] = useState(false);
   const [pdfErrorEkstrak, setPdfErrorEkstrak] = useState<string | null>(null);
   const [pdfRetryKey, setPdfRetryKey] = useState(0);
@@ -61,6 +64,7 @@ export function useDokumen() {
     setTeksTxt("");
     setPdfBase64(null);
     setPdfTeksPerHalaman(null);
+    setPdfTeksUntukTerjemahan(null);
     setPdfSedangEkstrak(false);
     setPdfErrorEkstrak(null);
     setPdfHalaman(1);
@@ -145,6 +149,7 @@ export function useDokumen() {
 
   function selesaiEkstrakPdf(hasil: string[]) {
     setPdfTeksPerHalaman(hasil);
+    setPdfTeksUntukTerjemahan(gabungkanKalimatLintasHalaman(hasil));
     setPdfSedangEkstrak(false);
   }
 
@@ -159,7 +164,7 @@ export function useDokumen() {
     daftarRiwayat,
     babEpub, babKe, setBabKe,
     htmlDokumen, teksTxt,
-    pdfBase64, pdfTeksPerHalaman, pdfSedangEkstrak, pdfErrorEkstrak, pdfRetryKey,
+    pdfBase64, pdfTeksPerHalaman, pdfTeksUntukTerjemahan, pdfSedangEkstrak, pdfErrorEkstrak, pdfRetryKey,
     pdfHalaman, setPdfHalaman, pdfTotalHalaman, setPdfTotalHalaman,
     pdfJumpTarget, pdfJumpToken, lompatKeHalamanPdf,
     pilihFile, bukaDariRiwayat, hapusDariRiwayat, kembaliKeAwal,

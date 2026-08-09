@@ -177,6 +177,35 @@ function bersihkanSpasi(teks: string): string {
     .trim();
 }
 
+export function gabungkanKalimatLintasHalaman(halaman: string[]): string[] {
+  const hasil = [...halaman];
+
+  for (let i = 0; i < hasil.length - 1; i++) {
+    const teksIni = hasil[i].trimEnd();
+    if (!teksIni) continue;
+
+    // Kalau halaman ini sudah berakhir dengan tanda baca penutup kalimat, tidak perlu disambung
+    const berakhirLengkap = /[.!?"'\u201d\u2019)]\s*$/.test(teksIni);
+    if (berakhirLengkap) continue;
+
+    const halamanBerikut = hasil[i + 1];
+    const cocok = halamanBerikut.match(/^[\s\S]*?[.!?]+(["'\u201d\u2019)]*)(\s+|$)/);
+
+    let ambil: string;
+    if (cocok) {
+      ambil = cocok[0];
+    } else {
+      const idxParagrafBaru = halamanBerikut.indexOf("\n\n");
+      ambil = idxParagrafBaru !== -1 ? halamanBerikut.slice(0, idxParagrafBaru) : halamanBerikut;
+    }
+
+    hasil[i] = teksIni + " " + ambil.trim();
+    hasil[i + 1] = halamanBerikut.slice(ambil.length);
+  }
+
+  return hasil;
+}
+
 export async function terjemahkanTeksPanjang(
   teks: string,
   bahasaSumber: Bahasa,
