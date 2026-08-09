@@ -42,46 +42,55 @@ const templateHtml = (base64: string) => `
   var teks = '';
   var lastY = null;
   var leftMargin = null;
+  var prevEndX = null;
 
-      for (var j = 0; j < content.items.length; j++) {
-        var it = content.items[j];
-        if (!it || typeof it.str !== 'string') continue;
-        var y = (it.transform && typeof it.transform[5] === 'number') ? it.transform[5] : null;
-        var x = (it.transform && typeof it.transform[4] === 'number') ? it.transform[4] : null;
+  for (var j = 0; j < content.items.length; j++) {
+    var it = content.items[j];
+    if (!it || typeof it.str !== 'string') continue;
+    var y = (it.transform && typeof it.transform[5] === 'number') ? it.transform[5] : null;
+    var x = (it.transform && typeof it.transform[4] === 'number') ? it.transform[4] : null;
+    var lebar = typeof it.width === 'number' ? it.width : 0;
+    var tinggi = typeof it.height === 'number' ? it.height : 10;
 
-        if (teks.length === 0) {
-          if (x !== null) leftMargin = x;
-          teks += it.str;
-          lastY = y;
-          continue;
-        }
+    if (teks.length === 0) {
+      if (x !== null) leftMargin = x;
+      teks += it.str;
+      lastY = y;
+      prevEndX = (x !== null) ? x + lebar : null;
+      continue;
+    }
 
-        var deltaY = (lastY !== null && y !== null) ? Math.abs(lastY - y) : 0;
+    var deltaY = (lastY !== null && y !== null) ? Math.abs(lastY - y) : 999;
 
-        if (deltaY > 4) {
-          var teksBaris = it.str.replace(/^\s+/, '');
-          var diawaliKutip = /^[\u0022\u201C\u2018\u2013\u2014']/.test(teksBaris);
-          var berindentasi = (leftMargin !== null && x !== null && (x - leftMargin) > 8);
+    if (deltaY > 4) {
+      var teksBaris = it.str.replace(/^\s+/, '');
+      var diawaliKutip = /^[\u0022\u201C\u2018\u2013\u2014']/.test(teksBaris);
+      var berindentasi = (leftMargin !== null && x !== null && (x - leftMargin) > 8);
 
-          if (leftMargin !== null && x !== null && x < leftMargin) {
-            leftMargin = x;
-          }
-
-          if (deltaY > 18 || diawaliKutip || berindentasi) {
-            teks += String.fromCharCode(10) + String.fromCharCode(10);
-          } else {
-            teks += String.fromCharCode(10);
-          }
-        } else {
-          teks += ' ';
-        }
-
-        teks += it.str;
-        if (y !== null) lastY = y;
+      if (leftMargin !== null && x !== null && x < leftMargin) {
+        leftMargin = x;
       }
 
-      hasil.push(teks);
+      if (deltaY > 18 || diawaliKutip || berindentasi) {
+        teks += String.fromCharCode(10) + String.fromCharCode(10);
+      } else {
+        teks += String.fromCharCode(10);
+      }
+    } else {
+      var jarak = (prevEndX !== null && x !== null) ? (x - prevEndX) : null;
+      var ambangSpasi = Math.max(1.5, tinggi * 0.18);
+      if (jarak !== null && jarak > ambangSpasi) {
+        teks += ' ';
+      }
     }
+
+    teks += it.str;
+    if (y !== null) lastY = y;
+    prevEndX = (x !== null) ? x + lebar : null;
+  }
+
+  hasil.push(teks);
+}
 
       kirimHasil({ sukses: true, data: hasil });
     } catch (e) {

@@ -22,9 +22,13 @@ export default function Index() {
   const [ukuranFont, setUkuranFont] = useState(18);
   const [modeGelap, setModeGelap] = useState(false);
   const [panelPengaturanTerbuka, setPanelPengaturanTerbuka] = useState(false);
-  const [bahasaSumber, setBahasaSumber] = useState<Bahasa>(DAFTAR_BAHASA[0]);
-  const [bahasaTujuan, setBahasaTujuan] = useState<Bahasa>(DAFTAR_BAHASA[3]);
-  const [metode, setMetode] = useState<MetodeTerjemahan>("mlkit");
+  const [bahasaSumber, setBahasaSumber] = useState<Bahasa>(
+      DAFTAR_BAHASA.find((b) => b.label === "Inggris") ?? DAFTAR_BAHASA[0]
+    );
+  const [bahasaTujuan, setBahasaTujuan] = useState<Bahasa>(
+      DAFTAR_BAHASA.find((b) => b.label === "Indonesia") ?? DAFTAR_BAHASA[DAFTAR_BAHASA.length - 1]
+    );
+  const [metode, setMetode] = useState<MetodeTerjemahan>("google");
 
   const terjemahanEpub = useTerjemahanEpub(dok.babEpub, bahasaSumber, bahasaTujuan, metode);
   const terjemahanPdf = useTerjemahanPdf(dok.pdfTeksPerHalaman, bahasaSumber, bahasaTujuan, metode);

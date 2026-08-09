@@ -172,10 +172,8 @@ function pecahJadiKalimat(teks: string): string[] {
 
 function bersihkanSpasi(teks: string): string {
   return teks
-    .replace(/[ \t]+/g, " ")                 // spasi ganda jadi satu
-    .replace(/[ \t]+([.,!?;:])/g, "$1")      // hapus spasi sebelum tanda baca
-    .replace(/([("\u201c])\s+/g, "$1")       // hapus spasi setelah kutip/kurung buka
-    .replace(/\s+([)"\u201d])/g, "$1")       // hapus spasi sebelum kutip/kurung tutup
+    .replace(/[ \t]+/g, " ")             // spasi ganda jadi satu spasi
+    .replace(/[ \t]+([.,!?;:])/g, "$1")  // hapus spasi nyasar sebelum tanda baca
     .trim();
 }
 
