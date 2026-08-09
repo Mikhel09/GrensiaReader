@@ -28,6 +28,14 @@ export function useDokumen() {
   const [pdfRetryKey, setPdfRetryKey] = useState(0);
   const [pdfHalaman, setPdfHalaman] = useState(1);
   const [pdfTotalHalaman, setPdfTotalHalaman] = useState(0);
+  const [pdfJumpTarget, setPdfJumpTarget] = useState(1);
+  const [pdfJumpToken, setPdfJumpToken] = useState(0);
+
+  function lompatKeHalamanPdf(halaman: number) {
+    setPdfJumpTarget(halaman);
+    setPdfJumpToken((t) => t + 1);
+    setPdfHalaman(halaman);
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -153,6 +161,7 @@ export function useDokumen() {
     htmlDokumen, teksTxt,
     pdfBase64, pdfTeksPerHalaman, pdfSedangEkstrak, pdfErrorEkstrak, pdfRetryKey,
     pdfHalaman, setPdfHalaman, pdfTotalHalaman, setPdfTotalHalaman,
+    pdfJumpTarget, pdfJumpToken, lompatKeHalamanPdf,
     pilihFile, bukaDariRiwayat, hapusDariRiwayat, kembaliKeAwal,
     cobaLagiEkstrakPdf, selesaiEkstrakPdf, gagalEkstrakPdf,
   };

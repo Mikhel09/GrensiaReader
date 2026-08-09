@@ -99,5 +99,9 @@ export function useTerjemahanPdf(
     }
   }
 
-  return { cache, modeTerjemahan, sedangMenerjemahkan, sedangProsesLatar, toggle, pindahHalaman };
+  function keluarTerjemahan() {
+    setModeTerjemahan(false);
+  }
+
+  return { cache, modeTerjemahan, sedangMenerjemahkan, sedangProsesLatar, toggle, pindahHalaman, keluarTerjemahan };
 }

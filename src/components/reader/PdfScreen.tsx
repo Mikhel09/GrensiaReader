@@ -2,16 +2,45 @@ import { Header } from "@/components/reader/Header";
 import { styles } from "@/styles/reader";
 import { EkstrakPdfTeks } from "@/utils/pdfEkstrak";
 import { bungkusHtml, teksParagrafKeHtml } from "@/utils/tampilan";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Button, Text, TouchableOpacity, View } from "react-native";
 import Pdf from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
+
+function PdfInnerView({
+  pdfRef,
+  fileUri,
+  initialPage,
+  onPageChanged,
+}: {
+  pdfRef: React.RefObject<any>;
+  fileUri: string;
+  initialPage: number;
+  onPageChanged: (halaman: number, total: number) => void;
+}) {
+  // "Dibekukan" sekali saat komponen ini pertama kali muncul di layar,
+  // supaya navigasi selanjutnya (lewat ref) tidak bentrok dengan prop ini.
+  const [halamanAwal] = useState(initialPage);
+
+  return (
+    <Pdf
+      ref={pdfRef}
+      source={{ uri: fileUri, cache: true }}
+      style={styles.pdf}
+      page={halamanAwal}
+      onPageChanged={onPageChanged}
+      onError={(error) => console.log("Error membuka PDF:", error)}
+    />
+  );
+}
 
 export function PdfScreen({
   namaFile, onKembali, fileUri,
   pdfBase64, pdfTeksPerHalaman, pdfSedangEkstrak, pdfErrorEkstrak, pdfRetryKey,
   onSelesaiEkstrak, onGagalEkstrak, onCobaLagiEkstrak,
   pdfHalaman, pdfTotalHalaman, onPageChanged, onPindahHalaman,
+  pdfJumpTarget, pdfJumpToken,
   htmlTerjemahan, modeTerjemahan, sedangMenerjemahkan, sedangProsesLatar,
   onToggleTerjemahan, onBukaPengaturan, onBukaPencarian, ukuranFont, modeGelap,
 }: {
@@ -30,6 +59,8 @@ export function PdfScreen({
   pdfTotalHalaman: number;
   onPageChanged: (halaman: number, total: number) => void;
   onPindahHalaman: (arah: 1 | -1) => void;
+  pdfJumpTarget: number;
+  pdfJumpToken: number;
   htmlTerjemahan: string | undefined;
   modeTerjemahan: boolean;
   sedangMenerjemahkan: boolean;
@@ -42,6 +73,22 @@ export function PdfScreen({
 }) {
   const pdfSiap = !!pdfTeksPerHalaman;
   const totalTampil = pdfTotalHalaman || pdfTeksPerHalaman?.length || 0;
+  const pdfRef = useRef<any>(null);
+
+  // Lompatan halaman dari hasil pencarian (bukan navigasi tombol biasa)
+  useEffect(() => {
+    if (pdfJumpToken > 0 && !modeTerjemahan) {
+      pdfRef.current?.setPage(pdfJumpTarget);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfJumpToken]);
+
+  function handlePindah(arah: 1 | -1) {
+    if (!modeTerjemahan) {
+      pdfRef.current?.setPage(pdfHalaman + arah);
+    }
+    onPindahHalaman(arah);
+  }
 
   return (
     <SafeAreaView style={[styles.containerBaca, modeGelap && styles.containerGelap]} edges={["top"]}>
@@ -50,25 +97,26 @@ export function PdfScreen({
         onKembali={onKembali}
         tampilkanFiturDokumen={pdfSiap}
         labelTombolTerjemahan={modeTerjemahan ? "Teks Asli" : "Terjemahkan"}
-        sedangMenerjemahkan={sedangMenerjemahkan}
+        sedangMenerjemahkan={sedangMenerjemahkan && !modeTerjemahan}
         onToggleTerjemahan={onToggleTerjemahan}
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
       />
 
       {modeTerjemahan ? (
-        <WebView
-          originWhitelist={["*"]}
-          source={{ html: bungkusHtml(teksParagrafKeHtml(htmlTerjemahan || ""), ukuranFont, modeGelap) }}
-        />
+        sedangMenerjemahkan ? (
+          <View style={styles.container}>
+            <ActivityIndicator size="large" color="#4A6FA5" />
+            <Text style={styles.teksLoading}>Menerjemahkan halaman ini...</Text>
+          </View>
+        ) : (
+          <WebView
+            originWhitelist={["*"]}
+            source={{ html: bungkusHtml(teksParagrafKeHtml(htmlTerjemahan || ""), ukuranFont, modeGelap) }}
+          />
+        )
       ) : (
-        <Pdf
-          source={{ uri: fileUri, cache: true }}
-          style={styles.pdf}
-          page={pdfHalaman}
-          onPageChanged={onPageChanged}
-          onError={(error) => console.log("Error membuka PDF:", error)}
-        />
+        <PdfInnerView pdfRef={pdfRef} fileUri={fileUri} initialPage={pdfHalaman} onPageChanged={onPageChanged} />
       )}
 
       {pdfSedangEkstrak && (
@@ -97,9 +145,9 @@ export function PdfScreen({
 
       {pdfSiap && (
         <View style={styles.navigasi}>
-          <Button title="‹ Sebelumnya" disabled={pdfHalaman <= 1} onPress={() => onPindahHalaman(-1)} />
+          <Button title="‹ Sebelumnya" disabled={pdfHalaman <= 1} onPress={() => handlePindah(-1)} />
           <Text style={styles.teksNavigasi}>Halaman {pdfHalaman} / {totalTampil || "?"}</Text>
-          <Button title="Selanjutnya ›" disabled={pdfHalaman >= totalTampil} onPress={() => onPindahHalaman(1)} />
+          <Button title="Selanjutnya ›" disabled={pdfHalaman >= totalTampil} onPress={() => handlePindah(1)} />
         </View>
       )}
     </SafeAreaView>

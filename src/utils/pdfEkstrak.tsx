@@ -37,37 +37,51 @@ const templateHtml = (base64: string) => `
       var hasil = [];
 
       for (var i = 1; i <= pdf.numPages; i++) {
-        var page = await pdf.getPage(i);
-        var content = await page.getTextContent();
-        var teks = '';
-        var lastY = null;
+  var page = await pdf.getPage(i);
+  var content = await page.getTextContent();
+  var teks = '';
+  var lastY = null;
+  var leftMargin = null;
 
-        for (var j = 0; j < content.items.length; j++) {
-          var it = content.items[j];
-          if (!it || typeof it.str !== 'string') continue;
-          var y = (it.transform && typeof it.transform[5] === 'number') ? it.transform[5] : null;
+      for (var j = 0; j < content.items.length; j++) {
+        var it = content.items[j];
+        if (!it || typeof it.str !== 'string') continue;
+        var y = (it.transform && typeof it.transform[5] === 'number') ? it.transform[5] : null;
+        var x = (it.transform && typeof it.transform[4] === 'number') ? it.transform[4] : null;
 
-          if (teks.length > 0) {
-            if (lastY !== null && y !== null) {
-              var deltaY = Math.abs(lastY - y);
-              if (deltaY > 18) {
-                teks += String.fromCharCode(10) + String.fromCharCode(10);
-              } else if (deltaY > 4) {
-                teks += String.fromCharCode(10);
-              } else {
-                teks += ' ';
-              }
-            } else {
-              teks += ' ';
-            }
-          }
-
+        if (teks.length === 0) {
+          if (x !== null) leftMargin = x;
           teks += it.str;
-          if (y !== null) lastY = y;
+          lastY = y;
+          continue;
         }
 
-        hasil.push(teks);
+        var deltaY = (lastY !== null && y !== null) ? Math.abs(lastY - y) : 0;
+
+        if (deltaY > 4) {
+          var teksBaris = it.str.replace(/^\s+/, '');
+          var diawaliKutip = /^[\u0022\u201C\u2018\u2013\u2014']/.test(teksBaris);
+          var berindentasi = (leftMargin !== null && x !== null && (x - leftMargin) > 8);
+
+          if (leftMargin !== null && x !== null && x < leftMargin) {
+            leftMargin = x;
+          }
+
+          if (deltaY > 18 || diawaliKutip || berindentasi) {
+            teks += String.fromCharCode(10) + String.fromCharCode(10);
+          } else {
+            teks += String.fromCharCode(10);
+          }
+        } else {
+          teks += ' ';
+        }
+
+        teks += it.str;
+        if (y !== null) lastY = y;
       }
+
+      hasil.push(teks);
+    }
 
       kirimHasil({ sukses: true, data: hasil });
     } catch (e) {

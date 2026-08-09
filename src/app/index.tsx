@@ -93,7 +93,8 @@ export default function Index() {
         if (dok.tipeFile === "epub" && item.babIndex !== null) {
           dok.setBabKe(item.babIndex);
         } else if (dok.tipeFile === "pdf" && item.babIndex !== null) {
-          dok.setPdfHalaman(item.babIndex + 1);
+          terjemahanPdf.keluarTerjemahan();
+          dok.lompatKeHalamanPdf(item.babIndex + 1);
         }
         pencarian.setTerbuka(false);
       }}
@@ -199,6 +200,8 @@ export default function Index() {
           dok.setPdfHalaman(halamanBaru);
           terjemahanPdf.pindahHalaman(halamanBaru);
         }}
+        pdfJumpTarget={dok.pdfJumpTarget}
+        pdfJumpToken={dok.pdfJumpToken}
         htmlTerjemahan={terjemahanPdf.cache[dok.pdfHalaman - 1]}
         modeTerjemahan={terjemahanPdf.modeTerjemahan}
         sedangMenerjemahkan={terjemahanPdf.sedangMenerjemahkan}
@@ -209,6 +212,7 @@ export default function Index() {
         ukuranFont={ukuranFont}
         modeGelap={modeGelap}
       />
+      
       {panel}
       {panelCari}
     </>
