@@ -27,3 +27,12 @@ export function bungkusHtml(
     </html>
   `;
 }
+
+export function teksParagrafKeHtml(teks: string): string {
+  const paragraf = teks
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (paragraf.length === 0) return "<p>Belum ada terjemahan untuk halaman ini.</p>";
+  return paragraf.map((p) => `<p>${p}</p>`).join("");
+}
