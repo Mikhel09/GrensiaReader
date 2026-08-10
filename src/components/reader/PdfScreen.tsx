@@ -1,10 +1,11 @@
 import { Header } from "@/components/reader/Header";
+import { NavigasiBaca } from "@/components/reader/NavigasiBaca";
 import { ReaderWebView } from "@/components/reader/ReaderWebView";
 import { styles } from "@/styles/reader";
 import { EkstrakPdfTeks } from "@/utils/pdfEkstrak";
 import { bungkusHtml, teksParagrafKeHtml } from "@/utils/tampilan";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Button, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 import Pdf from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -56,7 +57,7 @@ export function PdfScreen({
   pdfHalaman: number;
   pdfTotalHalaman: number;
   onPageChanged: (halaman: number, total: number) => void;
-  onPindahHalaman: (arah: 1 | -1) => void;
+  onPindahHalaman: (halamanBaru: number) => void;
   pdfJumpTarget: number;
   pdfJumpToken: number;
   htmlTerjemahan: string | undefined;
@@ -81,11 +82,11 @@ export function PdfScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdfJumpToken]);
 
-  function handlePindah(arah: 1 | -1) {
+  function handlePindah(halamanBaru: number) {
     if (!modeTerjemahan) {
-      pdfRef.current?.setPage(pdfHalaman + arah);
+      pdfRef.current?.setPage(halamanBaru);
     }
-    onPindahHalaman(arah);
+    onPindahHalaman(halamanBaru);
   }
 
   return (
@@ -143,11 +144,12 @@ export function PdfScreen({
       )}
 
       {pdfSiap && (
-        <View style={styles.navigasi}>
-          <Button title="‹ Sebelumnya" disabled={pdfHalaman <= 1} onPress={() => handlePindah(-1)} />
-          <Text style={styles.teksNavigasi}>Halaman {pdfHalaman} / {totalTampil || "?"}</Text>
-          <Button title="Selanjutnya ›" disabled={pdfHalaman >= totalTampil} onPress={() => handlePindah(1)} />
-        </View>
+        <NavigasiBaca
+          halamanSekarang={pdfHalaman}
+          totalHalaman={totalTampil || 1}
+          labelSatuan="Halaman"
+          onPindahKe={handlePindah}
+        />
       )}
     </SafeAreaView>
   );

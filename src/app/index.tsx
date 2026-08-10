@@ -153,10 +153,10 @@ export default function Index() {
           onKembali={dok.kembaliKeAwal}
           babEpub={dok.babEpub}
           babKe={dok.babKe}
-          onPindahBab={(arah) => {
-            const babBaru = dok.babKe + arah;
-            dok.setBabKe(babBaru);
-            terjemahanEpub.pindahBab(babBaru);
+          onPindahBab={(babBaru) => {
+            const target = Math.max(0, Math.min(dok.babEpub.length - 1, babBaru));
+            dok.setBabKe(target);
+            terjemahanEpub.pindahBab(target);
           }}
           htmlAsli={dok.babEpub[dok.babKe]?.html || ""}
           htmlTerjemahan={terjemahanEpub.cache[dok.babKe]}
@@ -242,10 +242,11 @@ export default function Index() {
           dok.setPdfHalaman(halaman);
           dok.setPdfTotalHalaman(total);
         }}
-        onPindahHalaman={(arah) => {
-          const halamanBaru = dok.pdfHalaman + arah;
-          dok.setPdfHalaman(halamanBaru);
-          terjemahanPdf.pindahHalaman(halamanBaru);
+        onPindahHalaman={(halamanBaru) => {
+          const total = dok.pdfTotalHalaman || dok.pdfTeksPerHalaman?.length || 1;
+          const target = Math.max(1, Math.min(total, halamanBaru));
+          dok.setPdfHalaman(target);
+          terjemahanPdf.pindahHalaman(target);
         }}
         pdfJumpTarget={dok.pdfJumpTarget}
         pdfJumpToken={dok.pdfJumpToken}
