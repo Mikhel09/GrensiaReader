@@ -110,7 +110,7 @@ export function PdfScreen({
             <Text style={styles.teksLoading}>Menerjemahkan halaman ini...</Text>
           </View>
        ) : (
-          <ReaderWebView html={bungkusHtml(teksParagrafKeHtml(htmlTerjemahan || ""), ukuranFont, modeGelap)} />
+          <ReaderWebView html={bungkusHtml(teksParagrafKeHtml(htmlTerjemahan || ""), ukuranFont, modeGelap)} resetKey={`pdf-${pdfHalaman}`} />
         )
       ) : (
         <PdfInnerView pdfRef={pdfRef} fileUri={fileUri} initialPage={pdfHalaman} onPageChanged={onPageChanged} />

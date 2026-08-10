@@ -34,7 +34,7 @@ export function TxtScreen({
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
       />
-      <ReaderWebView html={bungkusHtml(html, ukuranFont, modeGelap)} />
+      <ReaderWebView html={bungkusHtml(html, ukuranFont, modeGelap)} resetKey="txt" />
     </SafeAreaView>
   );
 }

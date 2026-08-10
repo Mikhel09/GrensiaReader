@@ -1,7 +1,11 @@
 import { useRef } from "react";
 import { WebView } from "react-native-webview";
 
-export function ReaderWebView({ html }: { html: string }) {
+export function ReaderWebView({ html, resetKey }: { html: string; resetKey: string | number }) {
+  return <ReaderWebViewInner key={resetKey} html={html} />;
+}
+
+function ReaderWebViewInner({ html }: { html: string }) {
   const scrollYRef = useRef(0);
 
   const injectedJs = `

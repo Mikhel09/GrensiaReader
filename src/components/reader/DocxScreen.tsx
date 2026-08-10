@@ -33,7 +33,7 @@ export function DocxScreen({
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
       />
-      <ReaderWebView html={bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap)} />
+      <ReaderWebView html={bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap)} resetKey="docx" />
     </SafeAreaView>
   );
 }

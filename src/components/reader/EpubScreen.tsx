@@ -41,7 +41,7 @@ export function EpubScreen({
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
       />
-      <ReaderWebView html={bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap)} />
+      <ReaderWebView html={bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap)} resetKey={`bab-${babKe}`} />
       {sedangProsesLatar && (
         <View style={styles.indikatorLatar}>
           <ActivityIndicator size="small" color="#4A6FA5" />
