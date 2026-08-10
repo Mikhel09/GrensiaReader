@@ -19,8 +19,6 @@ function PdfInnerView({
   initialPage: number;
   onPageChanged: (halaman: number, total: number) => void;
 }) {
-  // "Dibekukan" sekali saat komponen ini pertama kali muncul di layar,
-  // supaya navigasi selanjutnya (lewat ref) tidak bentrok dengan prop ini.
   const [halamanAwal] = useState(initialPage);
 
   return (
@@ -42,7 +40,7 @@ export function PdfScreen({
   pdfHalaman, pdfTotalHalaman, onPageChanged, onPindahHalaman,
   pdfJumpTarget, pdfJumpToken,
   htmlTerjemahan, modeTerjemahan, sedangMenerjemahkan, sedangProsesLatar,
-  onToggleTerjemahan, onBukaPengaturan, onBukaPencarian, ukuranFont, modeGelap,
+  onToggleTerjemahan, onBukaPengaturan, onBukaPencarian, onEkspor, ukuranFont, modeGelap,
 }: {
   namaFile: string;
   onKembali: () => void;
@@ -68,6 +66,7 @@ export function PdfScreen({
   onToggleTerjemahan: () => void;
   onBukaPengaturan: () => void;
   onBukaPencarian: () => void;
+  onEkspor: () => void;
   ukuranFont: number;
   modeGelap: boolean;
 }) {
@@ -75,7 +74,6 @@ export function PdfScreen({
   const totalTampil = pdfTotalHalaman || pdfTeksPerHalaman?.length || 0;
   const pdfRef = useRef<any>(null);
 
-  // Lompatan halaman dari hasil pencarian (bukan navigasi tombol biasa)
   useEffect(() => {
     if (pdfJumpToken > 0 && !modeTerjemahan) {
       pdfRef.current?.setPage(pdfJumpTarget);
@@ -101,6 +99,7 @@ export function PdfScreen({
         onToggleTerjemahan={onToggleTerjemahan}
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
+        onEkspor={onEkspor}
       />
 
       {modeTerjemahan ? (
@@ -109,8 +108,11 @@ export function PdfScreen({
             <ActivityIndicator size="large" color="#4A6FA5" />
             <Text style={styles.teksLoading}>Menerjemahkan halaman ini...</Text>
           </View>
-       ) : (
-          <ReaderWebView html={bungkusHtml(teksParagrafKeHtml(htmlTerjemahan || ""), ukuranFont, modeGelap)} resetKey={`pdf-${pdfHalaman}`} />
+        ) : (
+          <ReaderWebView
+            html={bungkusHtml(teksParagrafKeHtml(htmlTerjemahan || ""), ukuranFont, modeGelap)}
+            resetKey={`pdf-${pdfHalaman}`}
+          />
         )
       ) : (
         <PdfInnerView pdfRef={pdfRef} fileUri={fileUri} initialPage={pdfHalaman} onPageChanged={onPageChanged} />

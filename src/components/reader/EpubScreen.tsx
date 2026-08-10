@@ -9,7 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export function EpubScreen({
   namaFile, onKembali, babEpub, babKe, onPindahBab,
   htmlAsli, htmlTerjemahan, modeTerjemahan, sedangMenerjemahkan, sedangProsesLatar,
-  onToggleTerjemahan, onBukaPengaturan, onBukaPencarian, ukuranFont, modeGelap,
+  onToggleTerjemahan, onBukaPengaturan, onBukaPencarian, onEkspor, ukuranFont, modeGelap,
 }: {
   namaFile: string;
   onKembali: () => void;
@@ -24,6 +24,7 @@ export function EpubScreen({
   onToggleTerjemahan: () => void;
   onBukaPengaturan: () => void;
   onBukaPencarian: () => void;
+  onEkspor: () => void;
   ukuranFont: number;
   modeGelap: boolean;
 }) {
@@ -40,6 +41,7 @@ export function EpubScreen({
         onToggleTerjemahan={onToggleTerjemahan}
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
+        onEkspor={onEkspor}
       />
       <ReaderWebView html={bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap)} resetKey={`bab-${babKe}`} />
       {sedangProsesLatar && (

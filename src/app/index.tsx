@@ -11,9 +11,10 @@ import { useTerjemahanDokumen } from "@/hooks/useTerjemahanDokumen";
 import { useTerjemahanEpub } from "@/hooks/useTerjemahanEpub";
 import { useTerjemahanPdf } from "@/hooks/useTerjemahanPdf";
 import { styles } from "@/styles/reader";
+import { eksporTeksKeFile, susunEksporDokumen, susunEksporEpub, susunEksporPdf } from "@/utils/ekspor";
 import { Bahasa, DAFTAR_BAHASA, MetodeTerjemahan } from "@/utils/terjemahan";
 import { useState } from "react";
-import { ActivityIndicator, Text } from "react-native";
+import { ActivityIndicator, Alert, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
@@ -177,6 +178,43 @@ export default function Index() {
         {panelCari}
       </>
     );
+  }
+
+  async function eksporEpub() {
+    if (Object.keys(terjemahanEpub.cache).length === 0) {
+      Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu bab dulu sebelum mengekspor.");
+      return;
+    }
+    const konten = susunEksporEpub(dok.namaFile, dok.babEpub.length, terjemahanEpub.cache);
+    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+  }
+
+  async function eksporPdf() {
+    if (Object.keys(terjemahanPdf.cache).length === 0) {
+      Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu halaman dulu sebelum mengekspor.");
+      return;
+    }
+    const jumlahHalaman = dok.pdfTeksPerHalaman?.length || 0;
+    const konten = susunEksporPdf(dok.namaFile, jumlahHalaman, terjemahanPdf.cache);
+    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+  }
+
+  async function eksporDocx() {
+    if (!terjemahanDocx.hasil) {
+      Alert.alert("Belum ada terjemahan", "Terjemahkan dokumen ini dulu sebelum mengekspor.");
+      return;
+    }
+    const konten = susunEksporDokumen(dok.namaFile, terjemahanDocx.hasil, "html");
+    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+  }
+
+  async function eksporTxt() {
+    if (!terjemahanTxt.hasil) {
+      Alert.alert("Belum ada terjemahan", "Terjemahkan dokumen ini dulu sebelum mengekspor.");
+      return;
+    }
+    const konten = susunEksporDokumen(dok.namaFile, terjemahanTxt.hasil, "teks");
+    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
   }
 
   return (

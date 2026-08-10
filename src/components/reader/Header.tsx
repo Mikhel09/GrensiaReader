@@ -10,6 +10,7 @@ export function Header({
   onToggleTerjemahan,
   onBukaPengaturan,
   onBukaPencarian,
+  onEkspor,
 }: {
   namaFile: string;
   onKembali: () => void;
@@ -19,6 +20,7 @@ export function Header({
   onToggleTerjemahan: () => void;
   onBukaPengaturan: () => void;
   onBukaPencarian: () => void;
+  onEkspor?: () => void;
 }) {
   return (
     <View style={styles.header}>
@@ -31,6 +33,11 @@ export function Header({
       {tampilkanFiturDokumen && (
         <TouchableOpacity onPress={onBukaPencarian} style={styles.tombolHeaderKanan}>
           <Text style={styles.teksKembali}>🔍</Text>
+        </TouchableOpacity>
+      )}
+      {tampilkanFiturDokumen && onEkspor && (
+        <TouchableOpacity onPress={onEkspor} style={styles.tombolHeaderKanan}>
+          <Text style={styles.teksKembali}>⬇</Text>
         </TouchableOpacity>
       )}
       {tampilkanFiturDokumen && (

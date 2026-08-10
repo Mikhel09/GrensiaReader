@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export function DocxScreen({
   namaFile, onKembali, htmlAsli, htmlTerjemahan, modeTerjemahan, sedangMenerjemahkan,
-  onToggleTerjemahan, onBukaPengaturan, onBukaPencarian, ukuranFont, modeGelap,
+  onToggleTerjemahan, onBukaPengaturan, onBukaPencarian, onEkspor, ukuranFont, modeGelap,
 }: {
   namaFile: string;
   onKembali: () => void;
@@ -17,6 +17,7 @@ export function DocxScreen({
   onToggleTerjemahan: () => void;
   onBukaPengaturan: () => void;
   onBukaPencarian: () => void;
+  onEkspor: () => void;
   ukuranFont: number;
   modeGelap: boolean;
 }) {
@@ -32,6 +33,7 @@ export function DocxScreen({
         onToggleTerjemahan={onToggleTerjemahan}
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
+        onEkspor={onEkspor}
       />
       <ReaderWebView html={bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap)} resetKey="docx" />
     </SafeAreaView>

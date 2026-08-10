@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export function TxtScreen({
   namaFile, onKembali, teksAsli, teksTerjemahan, modeTerjemahan, sedangMenerjemahkan,
-  onToggleTerjemahan, onBukaPengaturan, onBukaPencarian, ukuranFont, modeGelap,
+  onToggleTerjemahan, onBukaPengaturan, onBukaPencarian, onEkspor, ukuranFont, modeGelap,
 }: {
   namaFile: string;
   onKembali: () => void;
@@ -17,6 +17,7 @@ export function TxtScreen({
   onToggleTerjemahan: () => void;
   onBukaPengaturan: () => void;
   onBukaPencarian: () => void;
+  onEkspor: () => void;
   ukuranFont: number;
   modeGelap: boolean;
 }) {
@@ -33,6 +34,7 @@ export function TxtScreen({
         onToggleTerjemahan={onToggleTerjemahan}
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
+        onEkspor={onEkspor}
       />
       <ReaderWebView html={bungkusHtml(html, ukuranFont, modeGelap)} resetKey="txt" />
     </SafeAreaView>
