@@ -1,18 +1,44 @@
 import { ambilTeksPolos } from "@/utils/terjemahan";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
+import { Alert } from "react-native";
+
+const KUNCI_FOLDER_EKSPOR = "folder_ekspor_uri";
 
 export async function eksporTeksKeFile(namaFile: string, konten: string): Promise<void> {
   const namaAman = namaFile.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = FileSystem.documentDirectory + namaAman;
-  await FileSystem.writeAsStringAsync(path, konten, { encoding: FileSystem.EncodingType.UTF8 });
 
-  const tersedia = await Sharing.isAvailableAsync();
-  if (tersedia) {
-    await Sharing.shareAsync(path, {
-      mimeType: "text/plain",
-      dialogTitle: "Simpan atau bagikan hasil terjemahan",
+  try {
+    let folderUri = await AsyncStorage.getItem(KUNCI_FOLDER_EKSPOR);
+
+    if (!folderUri) {
+      const izin = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (!izin.granted) {
+        return; // pengguna membatalkan pemilihan folder
+      }
+      folderUri = izin.directoryUri;
+      await AsyncStorage.setItem(KUNCI_FOLDER_EKSPOR, folderUri);
+    }
+
+    const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+      folderUri,
+      namaAman,
+      "text/plain"
+    );
+    await FileSystem.writeAsStringAsync(fileUri, konten, {
+      encoding: FileSystem.EncodingType.UTF8,
     });
+
+    Alert.alert("Berhasil disimpan", `File "${namaAman}" telah disimpan ke folder pilihanmu.`);
+  } catch (err) {
+    console.log("Gagal menyimpan file, mencoba minta folder baru:", err);
+    try {
+      await AsyncStorage.removeItem(KUNCI_FOLDER_EKSPOR);
+    } catch {}
+    Alert.alert(
+      "Gagal menyimpan",
+      "Terjadi kesalahan saat menyimpan file. Coba tekan tombol ekspor sekali lagi untuk memilih folder ulang."
+    );
   }
 }
 
