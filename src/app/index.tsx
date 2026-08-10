@@ -24,11 +24,11 @@ export default function Index() {
   const [modeGelap, setModeGelap] = useState(false);
   const [panelPengaturanTerbuka, setPanelPengaturanTerbuka] = useState(false);
   const [bahasaSumber, setBahasaSumber] = useState<Bahasa>(
-      DAFTAR_BAHASA.find((b) => b.label === "Inggris") ?? DAFTAR_BAHASA[0]
-    );
+    DAFTAR_BAHASA.find((b) => b.label === "Inggris") ?? DAFTAR_BAHASA[0]
+  );
   const [bahasaTujuan, setBahasaTujuan] = useState<Bahasa>(
-      DAFTAR_BAHASA.find((b) => b.label === "Indonesia") ?? DAFTAR_BAHASA[DAFTAR_BAHASA.length - 1]
-    );
+    DAFTAR_BAHASA.find((b) => b.label === "Indonesia") ?? DAFTAR_BAHASA[DAFTAR_BAHASA.length - 1]
+  );
   const [metode, setMetode] = useState<MetodeTerjemahan>("google");
 
   const terjemahanEpub = useTerjemahanEpub(dok.babEpub, bahasaSumber, bahasaTujuan, metode);
@@ -37,6 +37,43 @@ export default function Index() {
   const terjemahanTxt = useTerjemahanDokumen(dok.teksTxt, "teks", bahasaSumber, bahasaTujuan, metode);
 
   const pencarian = usePencarian();
+
+  async function eksporEpub() {
+    if (Object.keys(terjemahanEpub.cache).length === 0) {
+      Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu bab dulu sebelum mengekspor.");
+      return;
+    }
+    const konten = susunEksporEpub(dok.namaFile, dok.babEpub.length, terjemahanEpub.cache);
+    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+  }
+
+  async function eksporPdf() {
+    if (Object.keys(terjemahanPdf.cache).length === 0) {
+      Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu halaman dulu sebelum mengekspor.");
+      return;
+    }
+    const jumlahHalaman = dok.pdfTeksPerHalaman?.length || 0;
+    const konten = susunEksporPdf(dok.namaFile, jumlahHalaman, terjemahanPdf.cache);
+    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+  }
+
+  async function eksporDocx() {
+    if (!terjemahanDocx.hasil) {
+      Alert.alert("Belum ada terjemahan", "Terjemahkan dokumen ini dulu sebelum mengekspor.");
+      return;
+    }
+    const konten = susunEksporDokumen(dok.namaFile, terjemahanDocx.hasil, "html");
+    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+  }
+
+  async function eksporTxt() {
+    if (!terjemahanTxt.hasil) {
+      Alert.alert("Belum ada terjemahan", "Terjemahkan dokumen ini dulu sebelum mengekspor.");
+      return;
+    }
+    const konten = susunEksporDokumen(dok.namaFile, terjemahanTxt.hasil, "teks");
+    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+  }
 
   if (dok.loading) {
     return (
@@ -127,6 +164,7 @@ export default function Index() {
           onToggleTerjemahan={() => terjemahanEpub.toggle(dok.babKe)}
           onBukaPengaturan={() => setPanelPengaturanTerbuka(true)}
           onBukaPencarian={() => pencarian.setTerbuka(true)}
+          onEkspor={eksporEpub}
           ukuranFont={ukuranFont}
           modeGelap={modeGelap}
         />
@@ -149,6 +187,7 @@ export default function Index() {
           onToggleTerjemahan={terjemahanDocx.toggle}
           onBukaPengaturan={() => setPanelPengaturanTerbuka(true)}
           onBukaPencarian={() => pencarian.setTerbuka(true)}
+          onEkspor={eksporDocx}
           ukuranFont={ukuranFont}
           modeGelap={modeGelap}
         />
@@ -171,6 +210,7 @@ export default function Index() {
           onToggleTerjemahan={terjemahanTxt.toggle}
           onBukaPengaturan={() => setPanelPengaturanTerbuka(true)}
           onBukaPencarian={() => pencarian.setTerbuka(true)}
+          onEkspor={eksporTxt}
           ukuranFont={ukuranFont}
           modeGelap={modeGelap}
         />
@@ -178,43 +218,6 @@ export default function Index() {
         {panelCari}
       </>
     );
-  }
-
-  async function eksporEpub() {
-    if (Object.keys(terjemahanEpub.cache).length === 0) {
-      Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu bab dulu sebelum mengekspor.");
-      return;
-    }
-    const konten = susunEksporEpub(dok.namaFile, dok.babEpub.length, terjemahanEpub.cache);
-    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
-  }
-
-  async function eksporPdf() {
-    if (Object.keys(terjemahanPdf.cache).length === 0) {
-      Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu halaman dulu sebelum mengekspor.");
-      return;
-    }
-    const jumlahHalaman = dok.pdfTeksPerHalaman?.length || 0;
-    const konten = susunEksporPdf(dok.namaFile, jumlahHalaman, terjemahanPdf.cache);
-    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
-  }
-
-  async function eksporDocx() {
-    if (!terjemahanDocx.hasil) {
-      Alert.alert("Belum ada terjemahan", "Terjemahkan dokumen ini dulu sebelum mengekspor.");
-      return;
-    }
-    const konten = susunEksporDokumen(dok.namaFile, terjemahanDocx.hasil, "html");
-    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
-  }
-
-  async function eksporTxt() {
-    if (!terjemahanTxt.hasil) {
-      Alert.alert("Belum ada terjemahan", "Terjemahkan dokumen ini dulu sebelum mengekspor.");
-      return;
-    }
-    const konten = susunEksporDokumen(dok.namaFile, terjemahanTxt.hasil, "teks");
-    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
   }
 
   return (
@@ -251,10 +254,10 @@ export default function Index() {
         onToggleTerjemahan={() => terjemahanPdf.toggle(dok.pdfHalaman)}
         onBukaPengaturan={() => setPanelPengaturanTerbuka(true)}
         onBukaPencarian={() => pencarian.setTerbuka(true)}
+        onEkspor={eksporPdf}
         ukuranFont={ukuranFont}
         modeGelap={modeGelap}
       />
-      
       {panel}
       {panelCari}
     </>

@@ -25,19 +25,19 @@ export function Header({
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onKembali} style={styles.tombolKembali}>
-        <Text style={styles.teksKembali}>‹ Kembali</Text>
+        <Text style={styles.teksKembali}>{"< Kembali"}</Text>
       </TouchableOpacity>
       <Text style={styles.namaFileHeader} numberOfLines={1}>
         {namaFile}
       </Text>
       {tampilkanFiturDokumen && (
         <TouchableOpacity onPress={onBukaPencarian} style={styles.tombolHeaderKanan}>
-          <Text style={styles.teksKembali}>🔍</Text>
+          <Text style={styles.teksKembali}>Cari</Text>
         </TouchableOpacity>
       )}
       {tampilkanFiturDokumen && onEkspor && (
         <TouchableOpacity onPress={onEkspor} style={styles.tombolHeaderKanan}>
-          <Text style={styles.teksKembali}>⬇</Text>
+          <Text style={styles.teksKembali}>Unduh</Text>
         </TouchableOpacity>
       )}
       {tampilkanFiturDokumen && (
