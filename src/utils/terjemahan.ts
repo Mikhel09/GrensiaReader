@@ -91,15 +91,11 @@ async function terjemahkanBanyakDigabung(
   return hasilAkhir;
 }
 
-const TAG_INLINE = ["i", "em", "b", "strong", "u", "span", "a", "small", "sup", "sub"];
+const TAG_BLOK = ["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote"];
 
 function namaTag(tag: string): string {
   const cocok = tag.match(/^<\/?\s*([a-zA-Z0-9]+)/);
   return cocok ? cocok[1].toLowerCase() : "";
-}
-
-function adalahTagInline(tag: string): boolean {
-  return TAG_INLINE.includes(namaTag(tag));
 }
 
 export async function terjemahkanHtml(
@@ -108,89 +104,72 @@ export async function terjemahkanHtml(
   bahasaTujuan: Bahasa,
   metode: MetodeTerjemahan
 ): Promise<string> {
-  const tokens = html.split(/(<[^>]+>)/g);
+  // Pecah HTML jadi blok-blok berdasarkan tag pembuka/tutup blok (<p>, <div>, dst),
+  // supaya kalimat yang mengandung format inline (italic/bold) tetap utuh satu potong.
+  const tokens = html.split(/(<\/?[a-zA-Z0-9]+[^>]*>)/g);
 
-  type Segmen = { teks: string; placeholder: string[] };
-  const segmenList: Segmen[] = [];
-  const bagianOutput: { tipe: "segmen" | "literal"; nilai: string | number }[] = [];
+  const blokList: string[] = [];
+  let bufferTeksPolos = "";
 
-  let bufferTeks = "";
-  let bufferPlaceholder: string[] = [];
-
-  function tutupSegmen() {
-    segmenList.push({ teks: bufferTeks, placeholder: bufferPlaceholder });
-    bagianOutput.push({ tipe: "segmen", nilai: segmenList.length - 1 });
-    bufferTeks = "";
-    bufferPlaceholder = [];
+  function tutupBlok() {
+    blokList.push(bufferTeksPolos);
+    bufferTeksPolos = "";
   }
+
+  const susunanTag: string[] = [];
 
   for (const tok of tokens) {
     const adalahTag = tok.startsWith("<");
     if (adalahTag) {
-      if (adalahTagInline(tok)) {
-        bufferPlaceholder.push(tok);
-        bufferTeks += `\u27e6${bufferPlaceholder.length}\u27e7`;
-      } else {
-        tutupSegmen();
-        bagianOutput.push({ tipe: "literal", nilai: tok });
+      const nama = namaTag(tok);
+      if (TAG_BLOK.includes(nama)) {
+        tutupBlok();
+        susunanTag.push("<<<BLOK>>>");
+        susunanTag.push(tok);
       }
+      // tag inline (italic/bold/dst) dibuang begitu saja untuk versi terjemahan
     } else {
-      bufferTeks += tok;
+      bufferTeksPolos += tok;
     }
   }
-  tutupSegmen();
+  tutupBlok();
 
-  const indexTeks: number[] = [];
-  const teksUntukDiterjemahkan: string[] = [];
-  const spasiAwal: Record<number, string> = {};
-  const spasiAkhir: Record<number, string> = {};
-
-  segmenList.forEach((seg, i) => {
-    if (seg.teks.trim()) {
-      const cocok = seg.teks.match(/^(\s*)([\s\S]*?)(\s*)$/);
-      spasiAwal[i] = cocok ? cocok[1] : "";
-      spasiAkhir[i] = cocok ? cocok[3] : "";
-      indexTeks.push(i);
-      teksUntukDiterjemahkan.push(cocok ? cocok[2] : seg.teks);
+  // Susun ulang: setiap kali ketemu penanda <<<BLOK>>>, ambil isi blok berikutnya dari blokList
+  let idxBlok = 0;
+  const potongan: { tag?: string; blokIndex?: number }[] = [];
+  for (let i = 0; i < susunanTag.length; i++) {
+    if (susunanTag[i] === "<<<BLOK>>>") {
+      potongan.push({ blokIndex: idxBlok });
+      idxBlok++;
+      i++; // lewati, tag penyertanya diambil di baris berikut
+      potongan.push({ tag: susunanTag[i] });
     }
-  });
-
-  const hasilTerjemahan = await terjemahkanBanyakDigabung(
-    teksUntukDiterjemahkan,
-    bahasaSumber,
-    bahasaTujuan,
-    metode
-  );
-
-  const segmenHasil = segmenList.map((seg) => seg.teks);
-  indexTeks.forEach((idx, i) => {
-    const terjemahan = hasilTerjemahan[i] ?? teksUntukDiterjemahkan[i];
-    segmenHasil[idx] = (spasiAwal[idx] || "") + terjemahan + (spasiAkhir[idx] || "");
-  });
-
-  const segmenFinal = segmenHasil.map((teks, i) => {
-    const placeholder = segmenList[i].placeholder;
-    if (placeholder.length === 0) return teks;
-
-    const semuaAda = placeholder.every((_, idx) => teks.includes(`\u27e6${idx + 1}\u27e7`));
-    if (!semuaAda) {
-      // Kalau ada penanda yang hilang (kemungkinan terpotong mesin terjemahan),
-      // buang semua penanda tanpa menyisipkan tag, supaya HTML tidak rusak.
-      return teks.replace(/\u27e6\d+\u27e7/g, "");
-    }
-
-    let out = teks;
-    placeholder.forEach((tagAsli, idx) => {
-      out = out.split(`\u27e6${idx + 1}\u27e7`).join(tagAsli);
-    });
-    return out;
-  });
-
-  let hasilAkhir = "";
-  for (const bagian of bagianOutput) {
-    hasilAkhir += bagian.tipe === "segmen" ? segmenFinal[bagian.nilai as number] : (bagian.nilai as string);
   }
-  return hasilAkhir;
+
+  const teksUntukDiterjemahkan = blokList.filter((b) => b.trim());
+  const hasilTerjemahan =
+    teksUntukDiterjemahkan.length > 0
+      ? await terjemahkanBanyakDigabung(teksUntukDiterjemahkan, bahasaSumber, bahasaTujuan, metode)
+      : [];
+
+  let cursorHasil = 0;
+  const blokHasil = blokList.map((b) => {
+    if (!b.trim()) return b;
+    const hasil = hasilTerjemahan[cursorHasil] ?? b;
+    cursorHasil++;
+    return hasil;
+  });
+
+  let output = "";
+  for (const p of potongan) {
+    if (p.tag !== undefined) {
+      output += p.tag;
+    } else if (p.blokIndex !== undefined) {
+      output += blokHasil[p.blokIndex] || "";
+    }
+  }
+
+  return output;
 }
 
 export async function terjemahkanTeksPolos(
