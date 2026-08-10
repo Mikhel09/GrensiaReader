@@ -91,44 +91,106 @@ async function terjemahkanBanyakDigabung(
   return hasilAkhir;
 }
 
+const TAG_INLINE = ["i", "em", "b", "strong", "u", "span", "a", "small", "sup", "sub"];
+
+function namaTag(tag: string): string {
+  const cocok = tag.match(/^<\/?\s*([a-zA-Z0-9]+)/);
+  return cocok ? cocok[1].toLowerCase() : "";
+}
+
+function adalahTagInline(tag: string): boolean {
+  return TAG_INLINE.includes(namaTag(tag));
+}
+
 export async function terjemahkanHtml(
   html: string,
   bahasaSumber: Bahasa,
   bahasaTujuan: Bahasa,
   metode: MetodeTerjemahan
 ): Promise<string> {
-  const bagian = html.split(/(<[^>]+>)/g);
+  const tokens = html.split(/(<[^>]+>)/g);
+
+  type Segmen = { teks: string; placeholder: string[] };
+  const segmenList: Segmen[] = [];
+  const bagianOutput: { tipe: "segmen" | "literal"; nilai: string | number }[] = [];
+
+  let bufferTeks = "";
+  let bufferPlaceholder: string[] = [];
+
+  function tutupSegmen() {
+    segmenList.push({ teks: bufferTeks, placeholder: bufferPlaceholder });
+    bagianOutput.push({ tipe: "segmen", nilai: segmenList.length - 1 });
+    bufferTeks = "";
+    bufferPlaceholder = [];
+  }
+
+  for (const tok of tokens) {
+    const adalahTag = tok.startsWith("<");
+    if (adalahTag) {
+      if (adalahTagInline(tok)) {
+        bufferPlaceholder.push(tok);
+        bufferTeks += `\u27e6${bufferPlaceholder.length}\u27e7`;
+      } else {
+        tutupSegmen();
+        bagianOutput.push({ tipe: "literal", nilai: tok });
+      }
+    } else {
+      bufferTeks += tok;
+    }
+  }
+  tutupSegmen();
 
   const indexTeks: number[] = [];
-  const intiTeks: string[] = [];
+  const teksUntukDiterjemahkan: string[] = [];
   const spasiAwal: Record<number, string> = {};
   const spasiAkhir: Record<number, string> = {};
 
-  bagian.forEach((potongan, i) => {
-    const adalahTag = potongan.startsWith("<");
-    if (!adalahTag && potongan.trim()) {
-      const cocok = potongan.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  segmenList.forEach((seg, i) => {
+    if (seg.teks.trim()) {
+      const cocok = seg.teks.match(/^(\s*)([\s\S]*?)(\s*)$/);
       spasiAwal[i] = cocok ? cocok[1] : "";
       spasiAkhir[i] = cocok ? cocok[3] : "";
       indexTeks.push(i);
-      intiTeks.push(cocok ? cocok[2] : potongan);
+      teksUntukDiterjemahkan.push(cocok ? cocok[2] : seg.teks);
     }
   });
 
   const hasilTerjemahan = await terjemahkanBanyakDigabung(
-    intiTeks,
+    teksUntukDiterjemahkan,
     bahasaSumber,
     bahasaTujuan,
     metode
   );
 
-  const bagianBaru = [...bagian];
+  const segmenHasil = segmenList.map((seg) => seg.teks);
   indexTeks.forEach((idx, i) => {
-    const terjemahan = hasilTerjemahan[i] ?? intiTeks[i];
-    bagianBaru[idx] = (spasiAwal[idx] || "") + terjemahan + (spasiAkhir[idx] || "");
+    const terjemahan = hasilTerjemahan[i] ?? teksUntukDiterjemahkan[i];
+    segmenHasil[idx] = (spasiAwal[idx] || "") + terjemahan + (spasiAkhir[idx] || "");
   });
 
-  return bagianBaru.join("");
+  const segmenFinal = segmenHasil.map((teks, i) => {
+    const placeholder = segmenList[i].placeholder;
+    if (placeholder.length === 0) return teks;
+
+    const semuaAda = placeholder.every((_, idx) => teks.includes(`\u27e6${idx + 1}\u27e7`));
+    if (!semuaAda) {
+      // Kalau ada penanda yang hilang (kemungkinan terpotong mesin terjemahan),
+      // buang semua penanda tanpa menyisipkan tag, supaya HTML tidak rusak.
+      return teks.replace(/\u27e6\d+\u27e7/g, "");
+    }
+
+    let out = teks;
+    placeholder.forEach((tagAsli, idx) => {
+      out = out.split(`\u27e6${idx + 1}\u27e7`).join(tagAsli);
+    });
+    return out;
+  });
+
+  let hasilAkhir = "";
+  for (const bagian of bagianOutput) {
+    hasilAkhir += bagian.tipe === "segmen" ? segmenFinal[bagian.nilai as number] : (bagian.nilai as string);
+  }
+  return hasilAkhir;
 }
 
 export async function terjemahkanTeksPolos(
