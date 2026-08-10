@@ -11,7 +11,7 @@ import { useTerjemahanDokumen } from "@/hooks/useTerjemahanDokumen";
 import { useTerjemahanEpub } from "@/hooks/useTerjemahanEpub";
 import { useTerjemahanPdf } from "@/hooks/useTerjemahanPdf";
 import { styles } from "@/styles/reader";
-import { eksporTeksKeFile, susunEksporDokumen, susunEksporEpub, susunEksporPdf } from "@/utils/ekspor";
+import { eksporTeksKeFile, susunEksporDokumen, susunEksporEpub, susunEksporPdf, tanyaFormatEkspor } from "@/utils/ekspor";
 import { Bahasa, DAFTAR_BAHASA, MetodeTerjemahan } from "@/utils/terjemahan";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Text } from "react-native";
@@ -43,8 +43,12 @@ export default function Index() {
       Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu bab dulu sebelum mengekspor.");
       return;
     }
-    const konten = susunEksporEpub(dok.namaFile, dok.babEpub.length, terjemahanEpub.cache);
-    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+    tanyaFormatEkspor(async (format) => {
+      const konten = susunEksporEpub(dok.namaFile, dok.babEpub.length, terjemahanEpub.cache, format);
+      const ext = format === "txt" ? "txt" : "html";
+      const mime = format === "txt" ? "text/plain" : "text/html";
+      await eksporTeksKeFile(`${dok.namaFile}_terjemahan.${ext}`, konten, mime);
+    });
   }
 
   async function eksporPdf() {
@@ -52,9 +56,13 @@ export default function Index() {
       Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu halaman dulu sebelum mengekspor.");
       return;
     }
-    const jumlahHalaman = dok.pdfTeksPerHalaman?.length || 0;
-    const konten = susunEksporPdf(dok.namaFile, jumlahHalaman, terjemahanPdf.cache);
-    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+    tanyaFormatEkspor(async (format) => {
+      const jumlahHalaman = dok.pdfTeksPerHalaman?.length || 0;
+      const konten = susunEksporPdf(dok.namaFile, jumlahHalaman, terjemahanPdf.cache, format);
+      const ext = format === "txt" ? "txt" : "html";
+      const mime = format === "txt" ? "text/plain" : "text/html";
+      await eksporTeksKeFile(`${dok.namaFile}_terjemahan.${ext}`, konten, mime);
+    });
   }
 
   async function eksporDocx() {
@@ -62,8 +70,12 @@ export default function Index() {
       Alert.alert("Belum ada terjemahan", "Terjemahkan dokumen ini dulu sebelum mengekspor.");
       return;
     }
-    const konten = susunEksporDokumen(dok.namaFile, terjemahanDocx.hasil, "html");
-    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+    tanyaFormatEkspor(async (format) => {
+      const konten = susunEksporDokumen(dok.namaFile, terjemahanDocx.hasil!, "html", format);
+      const ext = format === "txt" ? "txt" : "html";
+      const mime = format === "txt" ? "text/plain" : "text/html";
+      await eksporTeksKeFile(`${dok.namaFile}_terjemahan.${ext}`, konten, mime);
+    });
   }
 
   async function eksporTxt() {
@@ -71,8 +83,12 @@ export default function Index() {
       Alert.alert("Belum ada terjemahan", "Terjemahkan dokumen ini dulu sebelum mengekspor.");
       return;
     }
-    const konten = susunEksporDokumen(dok.namaFile, terjemahanTxt.hasil, "teks");
-    await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten);
+    tanyaFormatEkspor(async (format) => {
+      const konten = susunEksporDokumen(dok.namaFile, terjemahanTxt.hasil!, "teks", format);
+      const ext = format === "txt" ? "txt" : "html";
+      const mime = format === "txt" ? "text/plain" : "text/html";
+      await eksporTeksKeFile(`${dok.namaFile}_terjemahan.${ext}`, konten, mime);
+    });
   }
 
   if (dok.loading) {
