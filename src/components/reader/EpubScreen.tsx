@@ -1,10 +1,10 @@
 import { Header } from "@/components/reader/Header";
+import { ReaderWebView } from "@/components/reader/ReaderWebView";
 import { styles } from "@/styles/reader";
 import { BabEpub } from "@/utils/epubReader";
 import { bungkusHtml } from "@/utils/tampilan";
 import { ActivityIndicator, Button, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
 
 export function EpubScreen({
   namaFile, onKembali, babEpub, babKe, onPindahBab,
@@ -41,7 +41,7 @@ export function EpubScreen({
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
       />
-      <WebView originWhitelist={["*"]} source={{ html: bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap) }} />
+      <ReaderWebView html={bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap)} />
       {sedangProsesLatar && (
         <View style={styles.indikatorLatar}>
           <ActivityIndicator size="small" color="#4A6FA5" />

@@ -1,4 +1,5 @@
 import { Header } from "@/components/reader/Header";
+import { ReaderWebView } from "@/components/reader/ReaderWebView";
 import { styles } from "@/styles/reader";
 import { EkstrakPdfTeks } from "@/utils/pdfEkstrak";
 import { bungkusHtml, teksParagrafKeHtml } from "@/utils/tampilan";
@@ -6,7 +7,6 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Button, Text, TouchableOpacity, View } from "react-native";
 import Pdf from "react-native-pdf";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
 
 function PdfInnerView({
   pdfRef,
@@ -109,11 +109,8 @@ export function PdfScreen({
             <ActivityIndicator size="large" color="#4A6FA5" />
             <Text style={styles.teksLoading}>Menerjemahkan halaman ini...</Text>
           </View>
-        ) : (
-          <WebView
-            originWhitelist={["*"]}
-            source={{ html: bungkusHtml(teksParagrafKeHtml(htmlTerjemahan || ""), ukuranFont, modeGelap) }}
-          />
+       ) : (
+          <ReaderWebView html={bungkusHtml(teksParagrafKeHtml(htmlTerjemahan || ""), ukuranFont, modeGelap)} />
         )
       ) : (
         <PdfInnerView pdfRef={pdfRef} fileUri={fileUri} initialPage={pdfHalaman} onPageChanged={onPageChanged} />

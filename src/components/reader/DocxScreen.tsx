@@ -1,8 +1,8 @@
 import { Header } from "@/components/reader/Header";
+import { ReaderWebView } from "@/components/reader/ReaderWebView";
 import { styles } from "@/styles/reader";
 import { bungkusHtml } from "@/utils/tampilan";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
 
 export function DocxScreen({
   namaFile, onKembali, htmlAsli, htmlTerjemahan, modeTerjemahan, sedangMenerjemahkan,
@@ -33,7 +33,7 @@ export function DocxScreen({
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
       />
-      <WebView originWhitelist={["*"]} source={{ html: bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap) }} />
+      <ReaderWebView html={bungkusHtml(htmlDitampilkan, ukuranFont, modeGelap)} />
     </SafeAreaView>
   );
 }

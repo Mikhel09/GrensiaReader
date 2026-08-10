@@ -1,8 +1,8 @@
 import { Header } from "@/components/reader/Header";
+import { ReaderWebView } from "@/components/reader/ReaderWebView";
 import { styles } from "@/styles/reader";
 import { bungkusHtml } from "@/utils/tampilan";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { WebView } from "react-native-webview";
 
 export function TxtScreen({
   namaFile, onKembali, teksAsli, teksTerjemahan, modeTerjemahan, sedangMenerjemahkan,
@@ -34,7 +34,7 @@ export function TxtScreen({
         onBukaPengaturan={onBukaPengaturan}
         onBukaPencarian={onBukaPencarian}
       />
-      <WebView originWhitelist={["*"]} source={{ html: bungkusHtml(html, ukuranFont, modeGelap) }} />
+      <ReaderWebView html={bungkusHtml(html, ukuranFont, modeGelap)} />
     </SafeAreaView>
   );
 }
