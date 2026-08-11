@@ -28,6 +28,7 @@ function PdfInnerView({
       source={{ uri: fileUri, cache: true }}
       style={styles.pdf}
       page={halamanAwal}
+      fitPolicy={2}
       onPageChanged={onPageChanged}
       onError={(error) => console.log("Error membuka PDF:", error)}
     />

@@ -54,7 +54,7 @@ export function EpubScreen({
       <NavigasiBaca
         halamanSekarang={babKe + 1}
         totalHalaman={babEpub.length}
-        labelSatuan="Bab"
+        labelSatuan="Halaman"
         onPindahKe={(h) => onPindahBab(h - 1)}
       />
     </SafeAreaView>

@@ -7,30 +7,29 @@ import { RakBuku } from "@/components/reader/RakBuku";
 import { TxtScreen } from "@/components/reader/TxtScreen";
 import { useDokumen } from "@/hooks/useDokumen";
 import { usePencarian } from "@/hooks/usePencarian";
+import { usePengaturanGlobal } from "@/hooks/usePengaturanGlobal";
 import { useTerjemahanDokumen } from "@/hooks/useTerjemahanDokumen";
 import { useTerjemahanEpub } from "@/hooks/useTerjemahanEpub";
 import { useTerjemahanPdf } from "@/hooks/useTerjemahanPdf";
 import { styles } from "@/styles/reader";
 import { eksporFileBiner, eksporTeksKeFile, susunEksporHtmlDokumen, susunEksporHtmlPdf, susunEksporTeksPolos } from "@/utils/ekspor";
 import { bangunEpub } from "@/utils/epubWriter";
-import { Bahasa, DAFTAR_BAHASA, MetodeTerjemahan } from "@/utils/terjemahan";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
   const dok = useDokumen();
+  const pengaturan = usePengaturanGlobal();
+  const {
+    ukuranFont, setUkuranFont,
+    modeGelap, setModeGelap,
+    bahasaSumber, setBahasaSumber,
+    bahasaTujuan, setBahasaTujuan,
+    metode, setMetode,
+  } = pengaturan;
 
-  const [ukuranFont, setUkuranFont] = useState(18);
-  const [modeGelap, setModeGelap] = useState(false);
   const [panelPengaturanTerbuka, setPanelPengaturanTerbuka] = useState(false);
-  const [bahasaSumber, setBahasaSumber] = useState<Bahasa>(
-    DAFTAR_BAHASA.find((b) => b.label === "Inggris") ?? DAFTAR_BAHASA[0]
-  );
-  const [bahasaTujuan, setBahasaTujuan] = useState<Bahasa>(
-    DAFTAR_BAHASA.find((b) => b.label === "Indonesia") ?? DAFTAR_BAHASA[DAFTAR_BAHASA.length - 1]
-  );
-  const [metode, setMetode] = useState<MetodeTerjemahan>("google");
 
   const terjemahanEpub = useTerjemahanEpub(dok.babEpub, bahasaSumber, bahasaTujuan, metode);
   const terjemahanPdf = useTerjemahanPdf(dok.pdfTeksUntukTerjemahan, bahasaSumber, bahasaTujuan, metode);
@@ -41,7 +40,7 @@ export default function Index() {
 
   async function eksporEpub() {
     if (Object.keys(terjemahanEpub.cache).length === 0) {
-      Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu bab dulu sebelum mengekspor.");
+      Alert.alert("Belum ada terjemahan", "Terjemahkan minimal satu halaman dulu sebelum mengekspor.");
       return;
     }
     const namaDasar = dok.namaFile.replace(/\.epub$/i, "");
@@ -77,11 +76,11 @@ export default function Index() {
     await eksporTeksKeFile(`${dok.namaFile}_terjemahan.txt`, konten, "text/plain");
   }
 
-  if (dok.loading) {
+  if (dok.loading || !pengaturan.siap) {
     return (
       <SafeAreaView style={styles.container}>
         <ActivityIndicator size="large" color="#4A6FA5" />
-        <Text style={styles.teksLoading}>Membuka file...</Text>
+        <Text style={styles.teksLoading}>{dok.loading ? "Membuka file..." : "Memuat pengaturan..."}</Text>
       </SafeAreaView>
     );
   }
@@ -93,6 +92,8 @@ export default function Index() {
         onPilihFile={dok.pilihFile}
         onBukaDariRiwayat={dok.bukaDariRiwayat}
         onHapusDariRiwayat={dok.hapusDariRiwayat}
+        modeGelap={modeGelap}
+        onToggleModeGelap={() => setModeGelap(!modeGelap)}
       />
     );
   }
@@ -114,7 +115,7 @@ export default function Index() {
     />
   );
 
-  const labelSatuan = dok.tipeFile === "epub" ? "Bab" : dok.tipeFile === "pdf" ? "Halaman" : null;
+  const labelSatuan = dok.tipeFile === "epub" || dok.tipeFile === "pdf" ? "Halaman" : null;
 
   const panelCari = (
     <PanelPencarian
@@ -135,10 +136,13 @@ export default function Index() {
       labelSatuan={labelSatuan}
       onTekanHasil={(item) => {
         if (dok.tipeFile === "epub" && item.babIndex !== null) {
-          dok.setBabKe(item.babIndex);
+          const target = item.babIndex;
+          dok.setBabKe(target);
+          terjemahanEpub.pindahBab(target);
         } else if (dok.tipeFile === "pdf" && item.babIndex !== null) {
-          terjemahanPdf.keluarTerjemahan();
-          dok.lompatKeHalamanPdf(item.babIndex + 1);
+          const target = item.babIndex + 1;
+          dok.lompatKeHalamanPdf(target);
+          terjemahanPdf.pindahHalaman(target);
         }
         pencarian.setTerbuka(false);
       }}

@@ -1,13 +1,12 @@
 import { TipeFile } from "@/types/reader";
 import { bukaDocx } from "@/utils/docxReader";
-import { BabEpub, bukaEpub } from "@/utils/epubReader";
+import { ambilCoverEpub, BabEpub, bukaEpub } from "@/utils/epubReader";
 import { ambilRiwayat, BukuRiwayat, hapusRiwayat, simpanRiwayat } from "@/utils/riwayat";
 import { gabungkanKalimatLintasHalaman } from "@/utils/terjemahan";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-
 
 export function useDokumen() {
   const [fileUri, setFileUri] = useState<string | null>(null);
@@ -81,7 +80,8 @@ export function useDokumen() {
         setBabEpub(bab);
         setBabKe(Math.min(babAwal, bab.length - 1));
         setTipeFile("epub");
-        await simpanRiwayat({ uri, nama, tipe: "epub", babTerakhir: babAwal });
+        const cover = await ambilCoverEpub(uri).catch(() => null);
+        await simpanRiwayat({ uri, nama, tipe: "epub", babTerakhir: babAwal, cover: cover || undefined });
       } else if (namaLower.endsWith(".docx")) {
         const html = await bukaDocx(uri);
         setHtmlDokumen(html);

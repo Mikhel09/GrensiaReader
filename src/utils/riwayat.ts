@@ -6,6 +6,7 @@ export type BukuRiwayat = {
   tipe: "pdf" | "epub" | "txt" | "docx";
   babTerakhir: number;
   waktuDibuka: number;
+  cover?: string;
 };
 
 const KUNCI_PENYIMPANAN = "riwayat_buku";
@@ -26,10 +27,7 @@ export async function simpanRiwayat(buku: Omit<BukuRiwayat, "waktuDibuka">) {
     const daftar = await ambilRiwayat();
     const tanpaDuplikat = daftar.filter((b) => b.uri !== buku.uri);
     tanpaDuplikat.unshift({ ...buku, waktuDibuka: Date.now() });
-    await AsyncStorage.setItem(
-      KUNCI_PENYIMPANAN,
-      JSON.stringify(tanpaDuplikat.slice(0, 30)) // simpan maksimal 30 terakhir
-    );
+    await AsyncStorage.setItem(KUNCI_PENYIMPANAN, JSON.stringify(tanpaDuplikat.slice(0, 30)));
   } catch (err) {
     console.log("Gagal menyimpan riwayat:", err);
   }

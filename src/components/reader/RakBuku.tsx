@@ -1,6 +1,6 @@
 import { styles } from "@/styles/reader";
 import { BukuRiwayat } from "@/utils/riwayat";
-import { FlatList, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const WARNA_TIPE: Record<string, string> = {
@@ -15,19 +15,30 @@ export function RakBuku({
   onPilihFile,
   onBukaDariRiwayat,
   onHapusDariRiwayat,
+  modeGelap,
+  onToggleModeGelap,
 }: {
   daftarRiwayat: BukuRiwayat[];
   onPilihFile: () => void;
   onBukaDariRiwayat: (buku: BukuRiwayat) => void;
   onHapusDariRiwayat: (uri: string) => void;
+  modeGelap: boolean;
+  onToggleModeGelap: () => void;
 }) {
   return (
-    <SafeAreaView style={styles.containerRak}>
-      <View style={styles.headerRak}>
-        <Text style={styles.judul}>GrensiaReader</Text>
-        <Text style={styles.subjudulRak}>
-          {daftarRiwayat.length > 0 ? `${daftarRiwayat.length} buku tersimpan` : "Rak bukumu masih kosong"}
-        </Text>
+    <SafeAreaView style={[styles.containerRak, modeGelap && styles.containerRakGelap]}>
+      <View style={[styles.headerRak, modeGelap && styles.headerRakGelap]}>
+        <View style={styles.barisJudulRak}>
+          <View>
+            <Text style={[styles.judul, modeGelap && styles.teksGelapUtama]}>GrensiaReader</Text>
+            <Text style={styles.subjudulRak}>
+              {daftarRiwayat.length > 0 ? `${daftarRiwayat.length} buku tersimpan` : "Rak bukumu masih kosong"}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onToggleModeGelap} style={[styles.saklarRak, modeGelap && styles.saklarRakAktif]}>
+            <Text style={styles.teksSaklarRak}>{modeGelap ? "Gelap" : "Terang"}</Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity style={styles.tombolTambah} onPress={onPilihFile}>
           <Text style={styles.teksTombolTambah}>+  Buka File Baru</Text>
         </TouchableOpacity>
@@ -48,16 +59,26 @@ export function RakBuku({
           columnWrapperStyle={styles.gridBaris}
           contentContainerStyle={styles.daftarRiwayat}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.itemRiwayat} onPress={() => onBukaDariRiwayat(item)} activeOpacity={0.85}>
-              <View style={[styles.ikonBuku, { backgroundColor: WARNA_TIPE[item.tipe] || "#4A6FA5" }]}>
-                <Text style={styles.teksIkonBuku}>{item.tipe.toUpperCase()}</Text>
-              </View>
+            <TouchableOpacity
+              style={[styles.itemRiwayat, modeGelap && styles.itemRiwayatGelap]}
+              onPress={() => onBukaDariRiwayat(item)}
+              activeOpacity={0.85}
+            >
+              {item.cover ? (
+                <Image source={{ uri: item.cover }} style={styles.ikonBuku} resizeMode="cover" />
+              ) : (
+                <View style={[styles.ikonBuku, { backgroundColor: WARNA_TIPE[item.tipe] || "#4A6FA5" }]}>
+                  <Text style={styles.teksIkonBuku}>{item.tipe.toUpperCase()}</Text>
+                </View>
+              )}
               <TouchableOpacity onPress={() => onHapusDariRiwayat(item.uri)} style={styles.tombolHapus}>
                 <Text style={styles.teksHapus}>x</Text>
               </TouchableOpacity>
               <View style={styles.infoRiwayat}>
-                <Text style={styles.namaRiwayat} numberOfLines={2}>{item.nama}</Text>
-                {item.tipe === "epub" && <Text style={styles.subRiwayat}>Bab {item.babTerakhir + 1}</Text>}
+                <Text style={[styles.namaRiwayat, modeGelap && styles.teksGelapUtama]} numberOfLines={2}>
+                  {item.nama}
+                </Text>
+                {item.tipe === "epub" && <Text style={styles.subRiwayat}>Halaman {item.babTerakhir + 1}</Text>}
               </View>
             </TouchableOpacity>
           )}
