@@ -18,6 +18,7 @@ export function useDokumen() {
 
   const [babEpub, setBabEpub] = useState<BabEpub[]>([]);
   const [babKe, setBabKe] = useState(0);
+  const [epubCover, setEpubCover] = useState<string | undefined>(undefined);
 
   const [htmlDokumen, setHtmlDokumen] = useState("");
   const [teksTxt, setTeksTxt] = useState("");
@@ -47,11 +48,12 @@ export function useDokumen() {
     }, [fileUri])
   );
 
+  // Simpan progress bab EPUB setiap kali pindah bab, tetap menyertakan cover yang sudah didapat
   useEffect(() => {
     if (tipeFile === "epub" && fileUri) {
-      simpanRiwayat({ uri: fileUri, nama: namaFile, tipe: "epub", babTerakhir: babKe });
+      simpanRiwayat({ uri: fileUri, nama: namaFile, tipe: "epub", babTerakhir: babKe, cover: epubCover });
     }
-  }, [babKe, tipeFile, fileUri, namaFile]);
+  }, [babKe, tipeFile, fileUri, namaFile, epubCover]);
 
   function bersihkanSemua() {
     setFileUri(null);
@@ -59,6 +61,7 @@ export function useDokumen() {
     setTipeFile(null);
     setBabEpub([]);
     setBabKe(0);
+    setEpubCover(undefined);
     setHtmlDokumen("");
     setTeksTxt("");
     setPdfBase64(null);
@@ -81,6 +84,7 @@ export function useDokumen() {
         setBabKe(Math.min(babAwal, bab.length - 1));
         setTipeFile("epub");
         const cover = await ambilCoverEpub(uri).catch(() => null);
+        setEpubCover(cover || undefined);
         await simpanRiwayat({ uri, nama, tipe: "epub", babTerakhir: babAwal, cover: cover || undefined });
       } else if (namaLower.endsWith(".docx")) {
         const html = await bukaDocx(uri);

@@ -135,16 +135,18 @@ export default function Index() {
       hasil={pencarian.hasil}
       labelSatuan={labelSatuan}
       onTekanHasil={(item) => {
-        if (dok.tipeFile === "epub" && item.babIndex !== null) {
-          const target = item.babIndex;
-          dok.setBabKe(target);
-          terjemahanEpub.pindahBab(target);
-        } else if (dok.tipeFile === "pdf" && item.babIndex !== null) {
-          const target = item.babIndex + 1;
-          dok.lompatKeHalamanPdf(target);
-          terjemahanPdf.pindahHalaman(target);
-        }
         pencarian.setTerbuka(false);
+        setTimeout(() => {
+          if (dok.tipeFile === "epub" && item.babIndex !== null) {
+            const target = item.babIndex;
+            dok.setBabKe(target);
+            terjemahanEpub.pindahBab(target);
+          } else if (dok.tipeFile === "pdf" && item.babIndex !== null) {
+            const target = item.babIndex + 1;
+            dok.lompatKeHalamanPdf(target);
+            terjemahanPdf.pindahHalaman(target);
+          }
+        }, 300);
       }}
     />
   );
