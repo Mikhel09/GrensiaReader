@@ -168,3 +168,14 @@ export async function ambilCoverEpub(fileUri: string): Promise<string | null> {
     return null;
   }
 }
+
+// Cari index bab berdasarkan potongan URL link (misalnya "chapter5.xhtml" atau "chapter5.xhtml#catatan1")
+export function cariIndexBabDariUrl(babList: BabEpub[], url: string): number {
+  const bagianAkhirUrl = url.split("/").pop() || url;
+  const namaFileTarget = bagianAkhirUrl.split("#")[0].split("?")[0];
+
+  return babList.findIndex((bab) => {
+    const namaFileBab = bab.judul.split("/").pop() || bab.judul;
+    return namaFileBab === namaFileTarget;
+  });
+}
